@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.gitignore
+*.pptx
+*.ipynb
+output_audio/
+supreme court/
+legal_speech_rag_dataset/
+*.log
+*.txt
+!legal_system_prompt.txt
+cloudflared.exe

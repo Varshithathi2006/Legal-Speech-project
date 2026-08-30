@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.pptx
+output_audio/
+Stage1_Video_Acquisition*.ipynb
+Stage2_Diarization*.ipynb
+diag_out.txt
+install_pyannote.log
+bge_log.txt
+requirements_full.txt
+*.log
+supreme court/
+legal_speech_rag_dataset/
+cloudflared.exe
