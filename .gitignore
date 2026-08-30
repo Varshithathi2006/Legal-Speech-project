@@ -12,3 +12,5 @@ requirements_full.txt
 supreme court/
 legal_speech_rag_dataset/
 cloudflared.exe
+.env
+.env.*

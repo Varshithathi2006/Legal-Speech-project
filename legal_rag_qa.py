@@ -6,6 +6,11 @@ import argparse
 import asyncio
 import logging
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Automatically load environment variables from .env
+load_dotenv()
+
 import chromadb
 from sentence_transformers import SentenceTransformer
 
@@ -966,15 +971,25 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
             try:
                 from huggingface_hub import InferenceClient
                 client = InferenceClient(token=hf_token)
-                resp = client.chat_completion(
-                    model="meta-llama/Llama-3.2-3B-Instruct",
-                    messages=[{"role": "user", "content": full_prompt}],
-                    max_tokens=600,
-                    temperature=0.3
-                )
-                raw_output = resp.choices[0].message.content.strip()
-                if raw_output and len(raw_output) > 20 and not raw_output.startswith("I can't provide"):
-                    explanation = raw_output
+                candidate_models = [
+                    "meta-llama/Llama-3.2-3B-Instruct",
+                    "Qwen/Qwen2.5-72B-Instruct",
+                    "mistralai/Mistral-7B-Instruct-v0.3"
+                ]
+                for hf_model in candidate_models:
+                    try:
+                        resp = client.chat_completion(
+                            model=hf_model,
+                            messages=[{"role": "user", "content": full_prompt}],
+                            max_tokens=600,
+                            temperature=0.2
+                        )
+                        raw_output = resp.choices[0].message.content.strip()
+                        if raw_output and len(raw_output) > 20 and not raw_output.startswith("I can't provide"):
+                            explanation = raw_output
+                            break
+                    except Exception:
+                        continue
             except Exception:
                 pass
                 

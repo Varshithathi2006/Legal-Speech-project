@@ -4,6 +4,11 @@ import time
 import json
 import tempfile
 import subprocess
+from dotenv import load_dotenv
+
+# Automatically load environment variables from .env
+load_dotenv()
+
 import streamlit as st
 
 # Set Streamlit Page Configuration
