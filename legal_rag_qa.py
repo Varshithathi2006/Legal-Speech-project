@@ -726,7 +726,9 @@ def text_to_speech_with_gender(text, gender="Female", output_filename=None):
 
     try:
         import edge_tts
-        asyncio.run(generate_edge_tts(text, output_path, voice=voice))
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            executor.submit(lambda: asyncio.run(generate_edge_tts(text, output_path, voice=voice))).result()
         tts_engine_used = f"edge-tts ({voice})"
     except Exception as e:
         logger.warning(f"edge-tts failed or offline ({e}). Falling back to pyttsx3...")

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indian Legal Speech RAG Studio</title>
+    <meta name="description" content="Production-grade AI Spoken Question Answering for Indian Legal Courtroom Proceedings and Statutory Provisions.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+    <!-- Background Glow Effect -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <!-- Header Navigation -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i data-lucide="scale"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>Legal Speech RAG</h1>
+                    <span class="brand-tag">Spoken AI Studio</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="status-indicator">
+                    <span class="pulse-dot"></span>
+                    <span id="api-status-text">Backend Connected</span>
+                </div>
+                <button id="settings-btn" class="icon-btn" title="API Settings">
+                    <i data-lucide="settings"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i data-lucide="server"></i> API Gateway Settings</h3>
+                <button id="close-settings" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <label for="api-url-input">Backend API URL:</label>
+                <input type="text" id="api-url-input" placeholder="https://your-hf-space.hf.space" value="https://varshithathi2006-legal-speech-api.hf.space">
+                <p class="helper-text">Point this to your Hugging Face Space backend URL or local server (<code>http://localhost:7860</code>).</p>
+            </div>
+            <div class="modal-footer">
+                <button id="save-settings" class="primary-btn">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="main-container">
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-badge">
+                <i data-lucide="sparkles"></i> Grounded Multi-Speaker Courtroom RAG & Neural Voice
+            </div>
+            <h2>Indian Legal Intelligence & Spoken QA</h2>
+            <p class="hero-desc">Ask questions across Indian statutory provisions and 85+ hours of multi-speaker court proceedings. Generates grounded prose answers with instant neural speech synthesis.</p>
+        </section>
+
+        <!-- Main Query Grid -->
+        <div class="query-grid">
+            <!-- Left Panel: Domain Controls & Inputs -->
+            <div class="glass-card panel-controls">
+                <div class="card-header">
+                    <i data-lucide="layers"></i>
+                    <h3>1. Hierarchical Domain Filtering</h3>
+                </div>
+
+                <div class="form-group">
+                    <label for="domain-select">Primary Legal Domain</label>
+                    <div class="custom-select-wrapper">
+                        <select id="domain-select">
+                            <option value="Constitutional & Administrative Law">Constitutional & Administrative Law</option>
+                            <option value="Corporate & Business Law">Corporate & Business Law</option>
+                            <option value="Criminal Law">Criminal Law</option>
+                            <option value="Cyber & Digital Law">Cyber & Digital Law</option>
+                            <option value="Employment & Labour Law">Employment & Labour Law</option>
+                            <option value="Family & Personal Law">Family & Personal Law</option>
+                            <option value="Property & Real Estate Law">Property & Real Estate Law</option>
+                            <option value="Consumer & Safety Law">Consumer & Safety Law</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="subdomain-select">Legal Subdomain</label>
+                    <div class="custom-select-wrapper">
+                        <select id="subdomain-select">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Applicable Law Badge -->
+                <div class="law-banner">
+                    <div class="law-icon"><i data-lucide="book-open"></i></div>
+                    <div class="law-content">
+                        <span class="law-label">Governing Statute</span>
+                        <span id="active-law" class="law-title">Representation of the People Act, 1951</span>
+                    </div>
+                </div>
+
+                <!-- Voice Selection -->
+                <div class="form-group voice-group">
+                    <label>Neural TTS Voice Gender</label>
+                    <div class="voice-toggle">
+                        <label class="radio-card active" data-voice="Female">
+                            <input type="radio" name="voice" value="Female" checked>
+                            <i data-lucide="mic"></i> Female (Neerja)
+                        </label>
+                        <label class="radio-card" data-voice="Male">
+                            <input type="radio" name="voice" value="Male">
+                            <i data-lucide="mic"></i> Male (Prabhat)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Presets -->
+                <div class="presets-container">
+                    <span class="preset-label"><i data-lucide="bookmark"></i> Benchmark Test Presets:</span>
+                    <div class="preset-chips">
+                        <button class="chip" data-domain="Constitutional & Administrative Law" data-subdomain="Election & Representation Law" data-query="What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?">RPA Section 9A</button>
+                        <button class="chip" data-domain="Corporate & Business Law" data-subdomain="Arbitration & Dispute Resolution" data-query="What are the statutory grounds for setting aside an arbitral award under Section 34 of the Arbitration and Conciliation Act?">Arbitration Sec 34</button>
+                        <button class="chip" data-domain="Criminal Law" data-subdomain="Bail & Criminal Procedure" data-query="What are the statutory conditions for granting bail in a non-bailable offence under Section 437 of the CrPC?">CrPC Bail Sec 437</button>
+                        <button class="chip" data-domain="Constitutional & Administrative Law" data-subdomain="Fundamental Rights & Writs" data-query="How is the right to life and personal liberty protected under Article 21 of the Indian Constitution?">Article 21 Rights</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Query Input & Results -->
+            <div class="glass-card panel-results">
+                <div class="card-header">
+                    <i data-lucide="message-square"></i>
+                    <h3>2. Legal Question & Answer</h3>
+                </div>
+
+                <div class="query-box">
+                    <textarea id="question-input" rows="3" placeholder="Enter your legal question (e.g., What are the statutory grounds for setting aside an arbitral award under Section 34?)"></textarea>
+                    <button id="run-btn" class="submit-btn">
+                        <span class="btn-text">Execute RAG Search</span>
+                        <i data-lucide="arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- Loading State -->
+                <div id="loading-spinner" class="loading-state hidden">
+                    <div class="spinner"></div>
+                    <p class="loading-msg">Executing dense vector retrieval & 21-rule AI synthesis...</p>
+                </div>
+
+                <!-- Results Output -->
+                <div id="results-container" class="results-wrapper hidden">
+                    <!-- Answer Card -->
+                    <div class="result-card answer-card">
+                        <div class="result-card-header">
+                            <span class="card-tag"><i data-lucide="check-circle-2"></i> Verified Legal Answer</span>
+                            <span id="latency-badge" class="latency-badge">0.82s</span>
+                        </div>
+                        <div id="answer-text" class="legal-prose-text">
+                            <!-- Answer inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Spoken Audio Player -->
+                    <div class="result-card audio-player-card">
+                        <div class="result-card-header">
+                            <span class="card-tag"><i data-lucide="volume-2"></i> Neural Voice Synthesis</span>
+                            <span id="voice-name" class="voice-badge">en-IN-NeerjaNeural</span>
+                        </div>
+                        <div class="audio-control-bar">
+                            <audio id="audio-player" controls preload="auto"></audio>
+                        </div>
+                    </div>
+
+                    <!-- Citations & Grounding Section -->
+                    <div class="result-card citations-card">
+                        <div class="result-card-header">
+                            <span class="card-tag"><i data-lucide="file-text"></i> Statutory & Transcript Citations</span>
+                        </div>
+                        <div id="citations-list" class="citations-container">
+                            <!-- Citations inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Evaluation Metrics Accordion -->
+                    <details class="metrics-accordion">
+                        <summary>
+                            <span><i data-lucide="bar-chart-2"></i> Diagnostic Evaluation Metrics</span>
+                            <i data-lucide="chevron-down" class="chevron"></i>
+                        </summary>
+                        <div class="metrics-grid" id="metrics-grid">
+                            <!-- Metrics items inserted here -->
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <p>⚖️ <strong>Legal Speech RAG Studio</strong> | 22AIE450 Speech Processing | Amrita Vishwa Vidyapeetham</p>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

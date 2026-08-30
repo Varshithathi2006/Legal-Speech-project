@@ -1,3 +1,5 @@
+fastapi>=0.110.0
+uvicorn>=0.28.0
 streamlit>=1.35.0
 chromadb>=0.4.22
 sentence-transformers>=2.2.2
@@ -12,7 +14,7 @@ pandas
 scipy
 scikit-learn
 soundfile
-pydantic
+pydantic>=2.0.0
 python-dotenv
 requests
 tqdm
