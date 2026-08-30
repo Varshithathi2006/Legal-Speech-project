@@ -59,6 +59,16 @@ try:
 except Exception as se:
     st.sidebar.error(f"Error fetching stats: {se}")
 
+st.sidebar.divider()
+with st.sidebar.expander("🔑 LLM API Key (Optional)", expanded=False):
+    st.caption("Enter a Gemini or OpenAI key to activate full 21-rule generative legal synthesis. If blank, the system uses clean grounded statutory synthesis.")
+    gemini_key = st.text_input("Gemini API Key:", type="password", placeholder="AIzaSy...")
+    if gemini_key:
+        os.environ["GEMINI_API_KEY"] = gemini_key.strip()
+    openai_key = st.text_input("OpenAI API Key:", type="password", placeholder="sk-...")
+    if openai_key:
+        os.environ["OPENAI_API_KEY"] = openai_key.strip()
+
 # ──────────────────────────────────────────────────────────────────────
 # Page 1: Ask a Legal Question (RAG QA)
 # ──────────────────────────────────────────────────────────────────────

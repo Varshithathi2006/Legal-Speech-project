@@ -743,6 +743,75 @@ def text_to_speech_with_gender(text, gender="Female", output_filename=None):
 
     return output_path, tts_engine_used
 
+def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
+    """
+    Synthesizes a clean, natural legal prose answer when no LLM API key is available,
+    strictly adhering to the 21-rule integrity constraints:
+    - Strips internal metadata tags (Statute:, Provision:, Category:, Law Content:).
+    - Prevents statute and section merging.
+    - Formats clear, direct legal prose.
+    """
+    if not chunks:
+        return "The available legal sources do not provide sufficient information to answer this accurately."
+
+    statute_chunks = [c for c in chunks if c["metadata"].get("source_type") == "statute_document"]
+    speech_chunks = [c for c in chunks if c["metadata"].get("source_type") == "speech_transcript"]
+
+    paragraphs = []
+    
+    if statute_chunks:
+        for sc in statute_chunks:
+            meta = sc.get("metadata", {})
+            act = meta.get("act_name", "")
+            # Clean merged acts (e.g. "Code of Criminal Procedure, 1973 / BNSS" -> take primary act based on query or CrPC)
+            if " / " in act:
+                act_parts = [p.strip() for p in act.split(" / ")]
+                matching_act = [p for p in act_parts if p.lower() in query_text.lower()]
+                act = matching_act[0] if matching_act else act_parts[0]
+
+            title = meta.get("title", meta.get("section_id", "Statutory Provision"))
+            # Clean merged sections (e.g. "Section 437 & 439" -> take specific section if query asked about one)
+            if " & " in title or " and " in title:
+                sec_match = re.search(r'(?:section|sec\.?)\s*([0-9]+[A-Za-z]?)', query_text, re.IGNORECASE)
+                if sec_match:
+                    target_sec = sec_match.group(1).upper()
+                    if target_sec in title:
+                        title_parts = [p.strip() for p in re.split(r'[-–:]', title)]
+                        title = f"Section {target_sec}" + (f" ({title_parts[-1]})" if len(title_parts) > 1 else "")
+
+            # Extract clean law content
+            raw_text = sc["document_text"]
+            if "Law Content:" in raw_text:
+                content = raw_text.split("Law Content:", 1)[-1].strip()
+            elif "Content:" in raw_text:
+                content = raw_text.split("Content:", 1)[-1].strip()
+            else:
+                content = re.sub(r'^(Statute|Provision|Category|Law Content):[^\n]*\n?', '', raw_text, flags=re.MULTILINE).strip()
+
+            if content:
+                content = content[0].upper() + content[1:] if len(content) > 1 else content
+                paragraphs.append(f"Under **{title}** of the **{act}**, {content[0].lower() + content[1:] if not content.startswith(('A ', 'The ', 'Every ', 'No ', 'Where ')) else content}")
+            break
+
+    if speech_chunks and not paragraphs:
+        for sp in speech_chunks[:2]:
+            meta = sp.get("metadata", {})
+            case_name = meta.get("case_name", "the courtroom proceedings")
+            raw_text = sp["document_text"]
+            clean_lines = []
+            for line in raw_text.splitlines():
+                if ":" in line and not line.startswith(("Case:", "Track:", "Speaker:")):
+                    speech_part = line.split(":", 1)[-1].strip()
+                    if len(speech_part) > 20 and not speech_part.startswith("["):
+                        clean_lines.append(speech_part)
+            if clean_lines:
+                paragraphs.append(f"In legal arguments during {case_name}, counsel submitted that " + " ".join(clean_lines[:3]))
+
+    if not paragraphs:
+        return "The available legal sources do not provide sufficient information to answer this accurately."
+
+    return "\n\n".join(paragraphs)
+
 def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender="Female"):
     """
     Validates alignment, performs domain-filtered RAG retrieval, and generates
@@ -910,7 +979,7 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
                 pass
                 
         if not explanation:
-            explanation = chunks[0]["document_text"]
+            explanation = synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain)
             
     if sources_list:
         citations = "\n".join([f"- {s}" for s in sources_list])
