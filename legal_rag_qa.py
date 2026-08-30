@@ -32,21 +32,24 @@ sh.setFormatter(logging.Formatter("%(levelname)s | %(message)s"))
 logger.addHandler(sh)
 
 # ──────────────────────────────────────────────────────────────────────
-# Load BGE-Large Model & Collection
+# Load Embedding Model & Collection (Memory-Optimized for Cloud Deployment)
 # ──────────────────────────────────────────────────────────────────────
-EMBEDDING_MODEL_NAME = "BAAI/bge-large-en-v1.5"
-embedder = SentenceTransformer(EMBEDDING_MODEL_NAME)
-
 chroma_client = chromadb.PersistentClient(path=VECTORSTORE_DIR)
-# Primary collection using BGE-Large & 150-300 word re-chunks
-collection_name = "legal_speech_rag_bge"
-if collection_name in [c.name for c in chroma_client.list_collections()]:
-    collection = chroma_client.get_collection(name=collection_name)
-else:
-    # Fallback to default if BGE collection build still in progress
-    collection = chroma_client.get_collection(name="legal_speech_rag")
+available_collections = [c.name for c in chroma_client.list_collections()]
+
+if os.environ.get("USE_BGE_LARGE", "0") == "1" and "legal_speech_rag_bge" in available_collections:
+    EMBEDDING_MODEL_NAME = "BAAI/bge-large-en-v1.5"
+    collection_name = "legal_speech_rag_bge"
+elif "legal_speech_rag" in available_collections:
     EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-    embedder = SentenceTransformer(EMBEDDING_MODEL_NAME)
+    collection_name = "legal_speech_rag"
+else:
+    collection_name = available_collections[0] if available_collections else "legal_speech_rag"
+    EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+
+logger.info(f"Initializing embedding model: {EMBEDDING_MODEL_NAME} for collection: {collection_name}")
+embedder = SentenceTransformer(EMBEDDING_MODEL_NAME)
+collection = chroma_client.get_collection(name=collection_name)
 
 # ──────────────────────────────────────────────────────────────────────
 # Context Retriever Function
