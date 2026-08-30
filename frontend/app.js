@@ -3,7 +3,7 @@
  */
 
 // Configuration
-const DEFAULT_API_URL = "https://varshithathi2006-legal-speech-api.hf.space";
+const DEFAULT_API_URL = "https://varshitha006-legal-speech-api.hf.space";
 let API_BASE_URL = localStorage.getItem("legal_rag_api_url") || (
     window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
         ? "http://localhost:7860" 

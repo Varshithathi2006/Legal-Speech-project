@@ -1,11 +1,11 @@
 ---
-title: Legal Speech RAG Studio
+title: Legal Speech API
 emoji: ⚖️
 colorFrom: indigo
 colorTo: blue
-sdk: streamlit
-sdk_version: 1.41.0
-app_file: app.py
+sdk: gradio
+sdk_version: 4.44.0
+app_file: app_hf.py
 pinned: false
 license: mit
 short_description: Multi-speaker legal audio transcript RAG & QA Engine
