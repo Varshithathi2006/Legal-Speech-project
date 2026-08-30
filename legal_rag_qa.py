@@ -837,7 +837,10 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
         # Load comprehensive legal system prompt template
         applicable_law = SUBDOMAIN_APPLICABLE_LAW.get(subdomain, f"{subdomain} (Applicable Indian Statute)")
         jurisdiction = "India"
-        
+        excerpts_text = ""
+        for idx, c in enumerate(chunks, 1):
+            excerpts_text += f"\nExcerpt {idx} [Source: {c['metadata'].get('case_name') or c['metadata'].get('act_name')}]:\n{c['document_text']}\n"
+
         prompt_template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "legal_system_prompt.txt")
         try:
             with open(prompt_template_path, "r", encoding="utf-8") as f:
@@ -846,6 +849,15 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
             system_prompt = system_prompt.replace("{primary_domain}", domain)
             system_prompt = system_prompt.replace("{subdomain}", subdomain)
             system_prompt = system_prompt.replace("{applicable_law}", applicable_law)
+            if "{question}" in system_prompt and "{context}" in system_prompt:
+                full_prompt = system_prompt.replace("{question}", query_text).replace("{context}", excerpts_text)
+            else:
+                full_prompt = (
+                    f"{system_prompt}\n\n"
+                    f"USER QUESTION:\n{query_text}\n\n"
+                    f"RETRIEVED LEGAL CONTEXT (use ONLY this to answer; do NOT mention these sources):\n"
+                    f"{excerpts_text}"
+                )
         except Exception:
             system_prompt = (
                 f"You are a domain-specific legal question-answering assistant.\n"
@@ -853,17 +865,11 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
                 f"Answer ONLY from the retrieved legal context. Do not invent legal rules. Do not mention RAG, retrieval, recordings, or hearings.\n"
                 f"If the context is insufficient, say: 'The provided legal sources do not contain sufficient information to answer this accurately.'"
             )
-
-        excerpts_text = ""
-        for idx, c in enumerate(chunks, 1):
-            excerpts_text += f"\nExcerpt {idx} [Source: {c['metadata'].get('case_name') or c['metadata'].get('act_name')}]:\n{c['document_text']}\n"
-
-        full_prompt = (
-            f"{system_prompt}\n\n"
-            f"USER QUESTION:\n{query_text}\n\n"
-            f"RETRIEVED LEGAL CONTEXT (use ONLY this to answer; do NOT mention these sources):\n"
-            f"{excerpts_text}"
-        )
+            full_prompt = (
+                f"{system_prompt}\n\n"
+                f"USER QUESTION:\n{query_text}\n\n"
+                f"RETRIEVED LEGAL CONTEXT:\n{excerpts_text}"
+            )
         
         if api_key:
             try:
