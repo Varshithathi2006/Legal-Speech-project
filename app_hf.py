@@ -1,3 +1,10 @@
+try:
+    import spaces
+    gpu_decorator = spaces.GPU
+except (ImportError, AttributeError):
+    def gpu_decorator(fn):
+        return fn
+
 import os
 import sys
 import json
@@ -11,13 +18,6 @@ from legal_rag_qa import (
     LEGAL_DOMAINS,
     SUBDOMAIN_APPLICABLE_LAW
 )
-
-try:
-    import spaces
-    gpu_decorator = spaces.GPU
-except (ImportError, AttributeError):
-    def gpu_decorator(fn):
-        return fn
 
 @gpu_decorator
 def handle_gradio_query(query, domain, subdomain, voice_gender):
