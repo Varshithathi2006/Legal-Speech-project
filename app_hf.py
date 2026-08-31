@@ -86,6 +86,6 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Sof
         outputs=[answer_box, citations_box, audio_box]
     )
 
-# Launch the Gradio app directly to keep the space active 24/7
+# Launch the Gradio app directly with show_api=False to prevent JSON schema parse errors
 demo.queue()
-demo.launch(server_name="0.0.0.0", server_port=7860)
+demo.launch(server_name="0.0.0.0", server_port=7860, show_api=False)
