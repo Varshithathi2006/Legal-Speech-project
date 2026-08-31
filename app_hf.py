@@ -12,6 +12,14 @@ from legal_rag_qa import (
     SUBDOMAIN_APPLICABLE_LAW
 )
 
+try:
+    import spaces
+    gpu_decorator = spaces.GPU
+except (ImportError, AttributeError):
+    def gpu_decorator(fn):
+        return fn
+
+@gpu_decorator
 def handle_gradio_query(query, domain, subdomain, voice_gender):
     if not query or not query.strip():
         return "Please enter a legal question.", "", None
