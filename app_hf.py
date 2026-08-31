@@ -28,6 +28,7 @@ def handle_gradio_query(query, domain, subdomain, voice_gender):
 # Default subdomains for initial load
 default_domain = "Constitutional & Administrative Law"
 default_subs = LEGAL_DOMAINS.get(default_domain, ["Fundamental Rights"])
+all_subdomains = sorted(list({s for subs in LEGAL_DOMAINS.values() for s in subs}))
 
 # Create Gradio Interface
 with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as demo:
@@ -42,7 +43,7 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Sof
                 label="Step 1: Primary Legal Domain"
             )
             subdomain_dropdown = gr.Dropdown(
-                choices=default_subs,
+                choices=all_subdomains,
                 value=default_subs[0] if default_subs else None,
                 label="Step 2: Legal Subdomain"
             )
@@ -54,7 +55,7 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Sof
             
             def on_domain_change(d):
                 subs = LEGAL_DOMAINS.get(d, [])
-                return gr.Dropdown(choices=subs, value=subs[0] if subs else None)
+                return gr.update(choices=subs, value=subs[0] if subs else None)
             
             domain_dropdown.change(on_domain_change, inputs=[domain_dropdown], outputs=[subdomain_dropdown])
             
