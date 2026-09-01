@@ -1,10 +1,3 @@
-try:
-    import spaces
-    gpu_decorator = spaces.GPU
-except (ImportError, AttributeError):
-    def gpu_decorator(fn):
-        return fn
-
 import os
 import sys
 import json
@@ -19,19 +12,25 @@ from legal_rag_qa import (
     SUBDOMAIN_APPLICABLE_LAW
 )
 
-@gpu_decorator
 def handle_gradio_query(query, domain, subdomain, voice_gender):
     if not query or not query.strip():
         return "Please enter a legal question.", "", None
     
-    # Run the 21-rule RAG retrieval & synthesis pipeline
-    ans, cites, aud_path, metrics = process_hierarchical_legal_query(
-        query_text=query.strip(),
-        domain=domain,
-        subdomain=subdomain,
-        voice_gender=voice_gender or "Female"
-    )
-    return ans, cites, aud_path
+    try:
+        # Run the 21-rule RAG retrieval & synthesis pipeline
+        ans, cites, aud_path, metrics = process_hierarchical_legal_query(
+            query_text=query.strip(),
+            domain=domain,
+            subdomain=subdomain,
+            voice_gender=voice_gender or "Female"
+        )
+        return ans, cites, aud_path
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error processing query: {error_details}")
+        error_msg = f"⚠️ **An error occurred during query processing:** {str(e)}\n\nPlease try rephrasing your legal question or selecting the domain again."
+        return error_msg, "N/A - Execution Error", None
 
 # Default subdomains for initial load
 default_domain = "Constitutional & Administrative Law"

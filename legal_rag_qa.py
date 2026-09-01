@@ -691,7 +691,7 @@ def check_hierarchical_domain_alignment(query_text, selected_domain, selected_su
     if hf_token:
         try:
             from huggingface_hub import InferenceClient
-            client = InferenceClient(token=hf_token)
+            client = InferenceClient(token=hf_token, timeout=10)
             resp = client.chat_completion(
                 model="meta-llama/Llama-3.2-3B-Instruct",
                 messages=[{"role": "user", "content": prompt}],
@@ -954,9 +954,15 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-1.5-flash")
-                resp = model.generate_content(full_prompt)
-                explanation = resp.text.strip()
+                for g_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
+                    try:
+                        model = genai.GenerativeModel(g_model)
+                        resp = model.generate_content(full_prompt)
+                        if resp.text:
+                            explanation = resp.text.strip()
+                            break
+                    except Exception:
+                        continue
             except Exception:
                 pass
                 
@@ -975,7 +981,7 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
         if not explanation and hf_token:
             try:
                 from huggingface_hub import InferenceClient
-                client = InferenceClient(token=hf_token)
+                client = InferenceClient(token=hf_token, timeout=12)
                 candidate_models = [
                     "meta-llama/Llama-3.2-3B-Instruct",
                     "Qwen/Qwen2.5-72B-Instruct",
