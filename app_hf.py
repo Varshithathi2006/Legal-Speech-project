@@ -6,12 +6,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+try:
+    import spaces
+    gpu_decorator = spaces.GPU(duration=180)
+except Exception:
+    def gpu_decorator(fn):
+        return fn
+
 from legal_rag_qa import (
     process_hierarchical_legal_query,
     LEGAL_DOMAINS,
     SUBDOMAIN_APPLICABLE_LAW
 )
 
+@gpu_decorator
 def handle_gradio_query(query, domain, subdomain, voice_gender):
     if not query or not query.strip():
         return "Please enter a legal question.", "", None
