@@ -51,6 +51,15 @@ logger.info(f"Initializing embedding model: {EMBEDDING_MODEL_NAME} for collectio
 embedder = SentenceTransformer(EMBEDDING_MODEL_NAME)
 collection = chroma_client.get_collection(name=collection_name)
 
+try:
+    import spaces
+    @spaces.GPU(duration=30)
+    def encode_text_vector(text):
+        return embedder.encode([text]).tolist()
+except Exception:
+    def encode_text_vector(text):
+        return embedder.encode([text]).tolist()
+
 # ──────────────────────────────────────────────────────────────────────
 # Context Retriever Function
 # ──────────────────────────────────────────────────────────────────────
@@ -63,7 +72,7 @@ def retrieve_legal_context(query_text, top_k=5, source_filter=None, act_filter=N
     along with optional legal domain-specific Act filtering.
     """
     t0 = time.time()
-    query_vec = embedder.encode([query_text]).tolist()
+    query_vec = encode_text_vector(query_text)
     
     # 1. Extract explicit section/article references from query (e.g., Section 9A, Sec 34, Article 21)
     sec_matches = re.findall(r'(?:section|sec\.?|article|art\.?)\s*([0-9]+[A-Za-z]?(?:\([0-9A-Za-z]+\))?)', query_text, re.IGNORECASE)
