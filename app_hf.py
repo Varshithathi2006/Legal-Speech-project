@@ -21,11 +21,45 @@ from legal_rag_qa import (
     SUBDOMAIN_APPLICABLE_LAW
 )
 
-def handle_gradio_query(query, domain, subdomain, voice_gender):
+def classify_legal_question(query):
+    """Infer a useful legal path from the user's wording without requiring legal taxonomy knowledge."""
+    text = (query or "").lower()
+    rules = [
+        ("Constitutional & Administrative Law", "Election & Representation Law", [
+            "section 9a", "section 8", "section 8a", "representation of the people",
+            "representation of people", "rpa", "election", "elections", "electoral"
+        ]),
+        ("Constitutional & Administrative Law", "Fundamental Rights", [
+            "article 14", "article 19", "article 21", "article 32", "article 226",
+            "fundamental right", "fundamental rights", "constitution"
+        ]),
+        ("Criminal Law", "CrPC", ["crpc", "criminal procedure", "fir", "arrest", "framing of charge"]),
+        ("Criminal Law", "Bail Procedures", ["bail", "non-bailable", "non bailable"]),
+        ("Criminal Law", "Indian Evidence Act", ["evidence act", "electronic evidence", "section 65b"]),
+        ("Corporate & Business Law", "Contract Law", ["arbitration", "arbitral award", "section 34"]),
+        ("Cyber & Digital Law", "IT Act", ["it act", "information technology", "section 66a", "section 79"]),
+        ("Constitutional & Administrative Law", "Election & Representation Law", ["disqualification", "government contract"]),
+    ]
+    for domain, subdomain, keywords in rules:
+        if any(keyword in text for keyword in keywords):
+            return domain, subdomain
+    return "Constitutional & Administrative Law", "Fundamental Rights"
+
+
+def update_detected_area(query):
+    domain, subdomain = classify_legal_question(query)
+    applicable_law = SUBDOMAIN_APPLICABLE_LAW.get(subdomain, subdomain)
+    area = f"**Detected area:** {domain} -> {subdomain}\n\n*Applicable law: {applicable_law}*"
+    return area, domain, subdomain
+
+
+def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode, manual_domain, manual_subdomain, voice_gender):
     if not query or not query.strip():
         return "Please enter a legal question.", "", None
     
     try:
+        domain = manual_domain if manual_mode else detected_domain
+        subdomain = manual_subdomain if manual_mode else detected_subdomain
         # Run the 21-rule RAG retrieval & synthesis pipeline
         ans, cites, aud_path, metrics = process_hierarchical_legal_query(
             query_text=query.strip(),
@@ -106,32 +140,51 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Sof
     
     with gr.Row():
         with gr.Column(scale=5, elem_classes="query-panel"):
-            domain_dropdown = gr.Dropdown(
-                choices=list(LEGAL_DOMAINS.keys()),
-                value=default_domain,
-                label="Step 1: Primary Legal Domain"
-            )
-            subdomain_dropdown = gr.Dropdown(
-                choices=all_subdomains,
-                value=default_subs[0] if default_subs else None,
-                label="Step 2: Legal Subdomain"
-            )
-            voice_choice = gr.Radio(
-                choices=["Female", "Male"],
-                value="Female",
-                label="Neural TTS Voice (Indian English)"
-            )
-            
-            def on_domain_change(d):
-                subs = LEGAL_DOMAINS.get(d, [])
-                return gr.update(choices=subs, value=subs[0] if subs else None)
-            
-            domain_dropdown.change(on_domain_change, inputs=[domain_dropdown], outputs=[subdomain_dropdown])
-            
             query_box = gr.Textbox(
                 lines=3,
                 label="Enter Legal Question",
                 placeholder="e.g. What does Section 9A of the Representation of the People Act state regarding disqualification for government contracts?"
+            )
+            detected_area = gr.Markdown(
+                "**Detected area:** Constitutional & Administrative Law -> Fundamental Rights\n\n*Applicable law: Constitution of India - Part III (Articles 12-35)*"
+            )
+            detected_domain = gr.Textbox(value=default_domain, visible=False)
+            detected_subdomain = gr.Textbox(value=default_subs[0] if default_subs else "Fundamental Rights", visible=False)
+            query_box.input(
+                update_detected_area,
+                inputs=[query_box],
+                outputs=[detected_area, detected_domain, detected_subdomain]
+            )
+
+            advanced_mode = gr.Checkbox(label="Advanced: choose the legal category manually", value=False)
+            with gr.Group(visible=False) as manual_group:
+                domain_dropdown = gr.Dropdown(
+                    choices=list(LEGAL_DOMAINS.keys()),
+                    value=default_domain,
+                    label="Primary Legal Domain"
+                )
+                subdomain_dropdown = gr.Dropdown(
+                    choices=LEGAL_DOMAINS[default_domain],
+                    value=default_subs[0] if default_subs else None,
+                    label="Legal Subdomain"
+                )
+
+                def on_domain_change(d):
+                    subs = LEGAL_DOMAINS.get(d, [])
+                    return gr.update(choices=subs, value=subs[0] if subs else None)
+
+                domain_dropdown.change(on_domain_change, inputs=[domain_dropdown], outputs=[subdomain_dropdown])
+
+            advanced_mode.change(
+                lambda enabled: gr.update(visible=enabled),
+                inputs=[advanced_mode],
+                outputs=[manual_group]
+            )
+
+            voice_choice = gr.Radio(
+                choices=["Female", "Male"],
+                value="Female",
+                label="Neural TTS Voice (Indian English)"
             )
             submit_btn = gr.Button("🔍 Execute Legal Search & Voice", variant="primary", elem_classes="primary-action")
             
@@ -142,7 +195,7 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Sof
 
     submit_btn.click(
         handle_gradio_query,
-        inputs=[query_box, domain_dropdown, subdomain_dropdown, voice_choice],
+        inputs=[query_box, detected_domain, detected_subdomain, advanced_mode, domain_dropdown, subdomain_dropdown, voice_choice],
         outputs=[answer_box, citations_box, audio_box]
     )
 
