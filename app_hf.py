@@ -46,13 +46,66 @@ default_domain = "Constitutional & Administrative Law"
 default_subs = LEGAL_DOMAINS.get(default_domain, ["Fundamental Rights"])
 all_subdomains = sorted(list({s for subs in LEGAL_DOMAINS.values() for s in subs}))
 
+custom_css = """
+.gradio-container {
+    max-width: 1480px !important;
+    margin: 0 auto !important;
+    padding: 28px 34px 42px !important;
+}
+
+.app-header {
+    margin-bottom: 22px;
+}
+
+.app-header h1 {
+    font-size: clamp(1.8rem, 3vw, 2.8rem) !important;
+    letter-spacing: 0 !important;
+    margin-bottom: 8px !important;
+}
+
+.app-header p {
+    color: #b8c4d8 !important;
+    font-size: 1.05rem !important;
+}
+
+.query-panel, .answer-panel {
+    border: 1px solid #2d3b54 !important;
+    border-radius: 14px !important;
+    padding: 22px !important;
+    background: #172238 !important;
+}
+
+.answer-panel textarea {
+    font-size: 1rem !important;
+    line-height: 1.55 !important;
+}
+
+.primary-action {
+    margin-top: 12px !important;
+    min-height: 52px !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+}
+
+@media (max-width: 760px) {
+    .gradio-container {
+        padding: 18px 14px 28px !important;
+    }
+
+    .query-panel, .answer-panel {
+        padding: 16px !important;
+    }
+}
+"""
+
 # Create Gradio Interface
-with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as demo:
-    gr.Markdown("# ⚖️ Indian Legal Speech RAG Studio")
-    gr.Markdown("### Grounded Spoken AI across Courtroom Proceedings & Indian Statutes")
+with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate"), css=custom_css) as demo:
+    with gr.Group(elem_classes="app-header"):
+        gr.Markdown("# ⚖️ Indian Legal Speech RAG Studio")
+        gr.Markdown("Grounded spoken answers from Indian statutes and courtroom proceedings")
     
     with gr.Row():
-        with gr.Column(scale=1):
+        with gr.Column(scale=5, elem_classes="query-panel"):
             domain_dropdown = gr.Dropdown(
                 choices=list(LEGAL_DOMAINS.keys()),
                 value=default_domain,
@@ -80,19 +133,9 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Sof
                 label="Enter Legal Question",
                 placeholder="e.g. What does Section 9A of the Representation of the People Act state regarding disqualification for government contracts?"
             )
-            submit_btn = gr.Button("🔍 Execute Legal Search & Voice", variant="primary")
+            submit_btn = gr.Button("🔍 Execute Legal Search & Voice", variant="primary", elem_classes="primary-action")
             
-            gr.Examples(
-                examples=[
-                    ["What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?", "Constitutional & Administrative Law", "Election & Representation Law", "Female"],
-                    ["What are the statutory grounds for setting aside an arbitral award under Section 34 of the Arbitration and Conciliation Act?", "Corporate & Business Law", "Contract Law", "Female"],
-                    ["What are the statutory conditions for granting bail in a non-bailable offence under Section 437 of the CrPC?", "Criminal Law", "Bail Procedures", "Female"],
-                    ["How is the right to life and personal liberty protected under Article 21 of the Indian Constitution?", "Constitutional & Administrative Law", "Fundamental Rights", "Female"]
-                ],
-                inputs=[query_box, domain_dropdown, subdomain_dropdown, voice_choice]
-            )
-
-        with gr.Column(scale=1):
+        with gr.Column(scale=6, elem_classes="answer-panel"):
             answer_box = gr.Textbox(lines=7, label="Verified Legal Answer")
             citations_box = gr.Textbox(lines=3, label="Statutory & Case Citations")
             audio_box = gr.Audio(label="Spoken Neural Voice Explanation", type="filepath")
