@@ -307,6 +307,8 @@ Do not unnecessarily introduce unrelated areas of law.
 
 If another legal provision is directly relevant and supported by the retrieved context, it may be mentioned only when necessary to answer the user's question.
 
+When the USER QUESTION names a specific statute and section, that provision is the primary subject of the answer. Use only retrieved excerpts that match both the named statute and requested section. Ignore unrelated sections, statutes, and generic constitutional material, even if they appear in the retrieved context. If the matching provision is not present, say that the available legal sources are insufficient instead of answering from a nearby provision.
+
 
 ============================================================
 13. RETRIEVAL METADATA IS NOT THE FINAL ANSWER

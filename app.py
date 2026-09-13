@@ -130,7 +130,8 @@ if page == "🔍 Page 1: Ask a Legal Question":
             "Writ Petitions": "How is a writ petition filed under Article 32 or 226 for fundamental rights violation?",
             "Center-State Relations": "Explain the distribution of legislative powers between Center and States under the Seventh Schedule.",
             "Administrative Tribunals": "What is the jurisdiction of Administrative Tribunals in service matters in India?",
-            "Constitutional Amendments": "What is section 9A of the Representation of the People Act?"
+            "Constitutional Amendments": "What is section 9A of the Representation of the People Act?",
+            "Election & Representation Law": "What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?"
         },
         "Corporate & Business Law": {
             "Contract Law": "What are the statutory grounds for setting aside an arbitral award under Section 34?",

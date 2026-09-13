@@ -38,7 +38,7 @@ logger.addHandler(sh)
 chroma_client = chromadb.PersistentClient(path=VECTORSTORE_DIR)
 available_collections = [c.name for c in chroma_client.list_collections()]
 
-if os.environ.get("USE_BGE_LARGE", "0") == "1" and "legal_speech_rag_bge" in available_collections:
+if os.environ.get("USE_BGE_LARGE", "1") != "0" and "legal_speech_rag_bge" in available_collections:
     EMBEDDING_MODEL_NAME = "BAAI/bge-large-en-v1.5"
     collection_name = "legal_speech_rag_bge"
 elif "legal_speech_rag" in available_collections:
@@ -91,6 +91,9 @@ CANONICAL_ACT_MAP = {
     "arbitral": "Arbitration and Conciliation Act, 1996",
     "conciliation": "Arbitration and Conciliation Act, 1996",
     "representation of the people": "Representation of the People Act, 1951",
+    "representation of people": "Representation of the People Act, 1951",
+    "representation of the people act": "Representation of the People Act, 1951",
+    "representation of people act": "Representation of the People Act, 1951",
     "rpa": "Representation of the People Act, 1951",
     "citizenship": "Citizenship Act, 1955",
     "information technology": "Information Technology Act, 2000",
@@ -170,8 +173,10 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
             except Exception:
                 pass
 
+    has_exact_section_matches = bool(retrieved_chunks)
+
     # 4. Multi-Domain Dense Retrieval: Ensure all explicitly referenced Acts get targeted representation
-    if len(explicit_acts) > 1:
+    if len(explicit_acts) > 1 and not has_exact_section_matches:
         # Multi-domain question: run targeted search for EACH explicitly referenced Act
         for act in explicit_acts:
             try:
@@ -220,11 +225,13 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
         else:
             where_clause = filters[0]
         
-    results = collection.query(
-        query_embeddings=query_vec,
-        n_results=top_k * 3,
-        where=where_clause
-    )
+    results = None
+    if not has_exact_section_matches:
+        results = collection.query(
+            query_embeddings=query_vec,
+            n_results=top_k * 3,
+            where=where_clause
+        )
     
     if results and results.get("documents") and results["documents"][0]:
         docs = results["documents"][0]
@@ -606,7 +613,7 @@ LEGAL_DOMAINS = {
     ],
     "Constitutional & Administrative Law": [
         "Fundamental Rights", "Writ Petitions", "Center-State Relations", 
-        "Administrative Tribunals", "Constitutional Amendments"
+        "Administrative Tribunals", "Constitutional Amendments", "Election & Representation Law"
     ],
     "Consumer & Safety Law": [
         "Consumer Protection", "Product Liability", "Food Safety Regulations", 
@@ -664,6 +671,7 @@ SUBDOMAIN_APPLICABLE_LAW = {
     "Center-State Relations": "Constitution of India — Part XI / Seventh Schedule",
     "Administrative Tribunals": "Administrative Tribunals Act, 1985",
     "Constitutional Amendments": "Constitution of India — Article 368",
+    "Election & Representation Law": "Representation of the People Act, 1951",
     # Consumer & Safety Law
     "Consumer Protection": "Consumer Protection Act, 2019",
     "Product Liability": "Consumer Protection Act, 2019 — Chapter VI",
@@ -686,7 +694,7 @@ def check_hierarchical_domain_alignment(query_text, selected_domain, selected_su
     query_lower = query_text.lower()
     domain_keywords = {
         "Criminal Law": ["crpc", "bail", "arrest", "ipc", "penal", "murder", "theft", "police", "fir", "charge", "evidence", "imprisonment", "accused", "convict"],
-        "Constitutional & Administrative Law": ["constitution", "fundamental right", "article 14", "article 21", "article 19", "writ", "parliament", "amendment", "electoral", "representation of the people", "rpa", "state relations"],
+        "Constitutional & Administrative Law": ["constitution", "fundamental right", "article 14", "article 21", "article 19", "writ", "parliament", "amendment", "electoral", "election", "representation of the people", "representation of people", "rpa", "section 9a", "state relations"],
         "Corporate & Business Law": ["companies act", "contract", "arbitration", "conciliation", "award", "agreement", "llp", "partnership", "insolvency", "bankruptcy", "ibc", "patent", "copyright", "trademark"],
         "Finance & Tax Law": ["gst", "income tax", "securities", "sebi", "banking", "rbi", "dividend", "revenue", "audit", "finance", "regulation", "taxation"],
         "Cyber & Digital Law": ["it act", "cyber", "privacy", "digital", "data", "encryption", "hack", "online", "computer", "electronic evidence"],

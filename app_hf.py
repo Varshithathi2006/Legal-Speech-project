@@ -84,7 +84,7 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Sof
             
             gr.Examples(
                 examples=[
-                    ["What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?", "Constitutional & Administrative Law", "Fundamental Rights", "Female"],
+                    ["What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?", "Constitutional & Administrative Law", "Election & Representation Law", "Female"],
                     ["What are the statutory grounds for setting aside an arbitral award under Section 34 of the Arbitration and Conciliation Act?", "Corporate & Business Law", "Contract Law", "Female"],
                     ["What are the statutory conditions for granting bail in a non-bailable offence under Section 437 of the CrPC?", "Criminal Law", "Bail Procedures", "Female"],
                     ["How is the right to life and personal liberty protected under Article 21 of the Indian Constitution?", "Constitutional & Administrative Law", "Fundamental Rights", "Female"]
