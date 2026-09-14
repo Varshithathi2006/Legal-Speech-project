@@ -146,12 +146,26 @@ def analyze_question(query_text):
     else:
         intent = "general/non-legal question"
 
+    detailed = bool(re.search(
+        r"\b(in detail|detailed|thorough|deep dive|everything|examples?|explain fully|comprehensive)\b",
+        lowered,
+    ))
+    if detailed:
+        answer_length = "detailed: use only the additional detail needed, usually up to 300 words"
+    elif comparison:
+        answer_length = "concise comparison: use a short table or 3 to 6 points, usually up to 150 words"
+    elif intent == "case-law query":
+        answer_length = "concise case response: Case, Held, and Relevance, usually up to 150 words"
+    else:
+        answer_length = "concise: answer in 1 to 5 sentences, usually 50 to 150 words"
+
     return {
         "intent": intent,
         "comparison": comparison,
         "provisions": provisions,
         "explicit_acts": explicit_acts,
         "plan": "; ".join(p["label"] for p in provisions) or "No explicit article or section; answer the stated concept directly",
+        "answer_length": answer_length,
     }
 
 def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=None):
@@ -913,6 +927,8 @@ def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
         return "The available legal sources do not provide sufficient information to answer this accurately."
 
     intent = classify_query_intent(query_text)
+    answer_length = analyze_question(query_text)["answer_length"]
+    detailed = answer_length.startswith("detailed")
     statute_chunks = [c for c in chunks if c["metadata"].get("source_type") == "statute_document"]
     speech_chunks = [c for c in chunks if c["metadata"].get("source_type") == "speech_transcript"]
 
@@ -964,6 +980,8 @@ def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
 
             if content:
                 content = content[0].upper() + content[1:] if len(content) > 1 else content
+                if not detailed:
+                    content = re.split(r"(?<=[.!?])\s+", content, maxsplit=2)[0]
                 lead_in = content[0].lower() + content[1:] if not content.startswith(('A ', 'The ', 'Every ', 'No ', 'Where ', 'When ')) else content
                 paragraphs.append(f"Under **{title}** of the **{act}**, {lead_in}")
                 
@@ -987,12 +1005,16 @@ def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
                     if len(speech_part) > 20 and not speech_part.startswith("["):
                         clean_lines.append(speech_part)
             if clean_lines:
-                paragraphs.append(f"In courtroom submissions during {case_name}, counsel argued: " + " ".join(clean_lines[:3]))
+                limit = 3 if detailed else 1
+                paragraphs.append("The relevant judicial principle is: " + " ".join(clean_lines[:limit]))
 
     if not paragraphs:
         return "The available legal sources do not provide sufficient information to answer this accurately."
 
-    return "\n\n".join(paragraphs)
+    answer = "\n\n".join(paragraphs)
+    if not detailed and len(answer.split()) > 150:
+        answer = " ".join(answer.split()[:150]).rstrip(" ,;:") + "."
+    return answer
 
 def process_hierarchical_legal_query(
     query_text,
@@ -1122,6 +1144,7 @@ def process_hierarchical_legal_query(
             system_prompt = system_prompt.replace("{applicable_law}", applicable_law)
             system_prompt = system_prompt.replace("{intent}", intent)
             system_prompt = system_prompt.replace("{question_plan}", question["plan"])
+            system_prompt = system_prompt.replace("{answer_length}", question["answer_length"])
             system_prompt = system_prompt.replace("{conversation_context}", conversation_context)
             if "{question}" in system_prompt and "{context}" in system_prompt:
                 full_prompt = system_prompt.replace("{question}", query_text).replace("{context}", excerpts_text)
@@ -1130,6 +1153,7 @@ def process_hierarchical_legal_query(
                     f"{system_prompt}\n\n"
                     f"QUESTION INTENT: {intent}\n\n"
                     f"QUESTION PLAN: {question['plan']}\n\n"
+                    f"ANSWER LENGTH: {question['answer_length']}\n\n"
                     f"RELEVANT PRIOR TURN CONTEXT:\n{conversation_context}\n\n"
                     f"USER QUESTION:\n{query_text}\n\n"
                     f"RETRIEVED LEGAL CONTEXT (use ONLY this to answer; do NOT mention these sources):\n"
@@ -1147,6 +1171,7 @@ def process_hierarchical_legal_query(
                 f"{system_prompt}\n\n"
                 f"QUESTION INTENT: {intent}\n\n"
                 f"QUESTION PLAN: {question['plan']}\n\n"
+                f"ANSWER LENGTH: {question['answer_length']}\n\n"
                 f"RELEVANT PRIOR TURN CONTEXT:\n{conversation_context}\n\n"
                 f"USER QUESTION:\n{query_text}\n\n"
                 f"RETRIEVED LEGAL CONTEXT:\n{excerpts_text}"
