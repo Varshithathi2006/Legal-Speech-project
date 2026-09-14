@@ -625,10 +625,11 @@ Treat the USER QUESTION as the source of truth and the retrieved context as evid
 1. Identify what the user asks for: explanation, definition, comparison, difference, list, procedure, example, interpretation, case-law explanation, statutory provision, or general answer.
 2. Use QUESTION PLAN to address every explicit Article, Section, provision, Act, case, or concept. For a comparison, retrieve and explain both sides before comparing them directly.
 3. Ignore retrieved passages that do not directly help answer the question. Do not produce a summary of whatever happened to be retrieved.
-4. Match answer length to the question. Prefer a focused answer over unrelated document coverage.
-5. Select citations because they support the answer, not merely because they appeared in context.
-6. Use RELEVANT PRIOR TURN CONTEXT only to resolve references such as "this", "that", "what about", or "what is the difference". Do not treat it as a new question.
-7. Follow ANSWER LENGTH. By default, give the shortest complete answer: simple facts in 1 to 3 sentences, concepts in 2 to 4 sentences, provisions in 2 to 5 sentences, comparisons in a short table or 3 to 6 points, and case-law answers as Case, Held, and Relevance. Do not exceed the suggested range unless the user explicitly requests detail.
-8. Do not repeat the question, add generic background, or include a separate conclusion when the answer is already complete.
+4. Treat an exact Article, Section, Act, or named case in the USER QUESTION as mandatory scope. Do not substitute a semantically similar provision. If a retrieved passage does not directly match or explain a requested target, ignore it.
+5. Match answer length to the question. Prefer a focused answer over unrelated document coverage.
+6. Select only the minimum citations needed to support the answer. Do not list every retrieved Article, Section, Act, or case.
+7. Use RELEVANT PRIOR TURN CONTEXT only to resolve references such as "this", "that", "what about", or "what is the difference". Do not treat it as a new question.
+8. Follow ANSWER LENGTH. By default, give the shortest complete answer: simple facts in 1 to 3 sentences, concepts in 2 to 4 sentences, provisions in 2 to 5 sentences, comparisons in a short table or 3 to 6 points, and case-law answers as Case, Held, and Relevance. Do not exceed the suggested range unless the user explicitly requests detail.
+9. Do not repeat the question, add generic background, or include a separate conclusion when the answer is already complete.
 
 Before returning the answer, silently verify: Did I answer the exact question, cover every sub-question and named entity, compare both sides when requested, use relevant citations, avoid an evidence dump, and omit unrelated information? Revise if any answer is no.

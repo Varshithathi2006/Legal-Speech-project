@@ -117,9 +117,7 @@ def analyze_question(query_text):
         entity = f"Article {number}" if prefix == "Art_" else f"Section {number}"
         provisions.append({
             "label": entity,
-            "section_ids": [f"{prefix}{number.replace('(', '_').replace(')', '')}",
-                            f"Sec_{number.replace('(', '_').replace(')', '')}",
-                            f"Art_{number.replace('(', '_').replace(')', '')}"],
+            "section_ids": [f"{prefix}{number.replace('(', '_').replace(')', '')}"],
         })
 
     seen_labels = set()
@@ -167,6 +165,38 @@ def analyze_question(query_text):
         "plan": "; ".join(p["label"] for p in provisions) or "No explicit article or section; answer the stated concept directly",
         "answer_length": answer_length,
     }
+
+
+def filter_relevant_context(chunks, question):
+    """Keep only chunks that directly match a requested entity or named Act."""
+    provisions = question["provisions"]
+    explicit_acts = question["explicit_acts"]
+    if not provisions and not explicit_acts:
+        return chunks[:4]
+
+    relevant = []
+    for chunk in chunks:
+        metadata = chunk.get("metadata", {})
+        haystack = " ".join(str(value) for value in metadata.values()).lower()
+        haystack += " " + chunk.get("document_text", "").lower()
+        entity_match = any(
+            provision["label"].lower() in haystack
+            or provision["section_ids"][0].lower() in haystack
+            for provision in provisions
+        )
+        act_match = any(act.lower() in haystack for act in explicit_acts)
+        if (provisions and entity_match) or (not provisions and act_match):
+            relevant.append(chunk)
+
+    # Never replace an explicitly requested target with a merely similar chunk.
+    if provisions:
+        for provision in provisions:
+            target = provision["label"].lower()
+            if not any(target in " ".join(str(value) for value in c.get("metadata", {}).values()).lower()
+                       or provision["section_ids"][0].lower() in c.get("document_text", "").lower()
+                       for c in relevant):
+                continue
+    return relevant[:6]
 
 def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=None):
     """
@@ -1102,6 +1132,7 @@ def process_hierarchical_legal_query(
 
     # Step 4: Run RAG Context Retrieval
     chunks, r_latency = retrieve_legal_context(query_text, top_k=10, act_filter=act_filter)
+    chunks = filter_relevant_context(chunks, question)
     
     # Step 4: Synthesize Answer
     api_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
@@ -1122,6 +1153,9 @@ def process_hierarchical_legal_query(
         if source_str not in seen_sources:
             seen_sources.add(source_str)
             sources_list.append(source_str)
+
+    # Keep the displayed citation list proportional to the requested scope.
+    sources_list = sources_list[:max(2, len(question["provisions"]) or 1)]
             
     explanation = ""
     if not chunks:
