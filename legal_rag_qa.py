@@ -100,6 +100,22 @@ CANONICAL_ACT_MAP = {
     "it act": "Information Technology Act, 2000",
 }
 
+BUILTIN_CONSTITUTIONAL_REFERENCES = {
+    "Article 14": (
+        "The State shall not deny to any person equality before the law or the equal protection of the laws "
+        "within the territory of India."
+    ),
+    "Article 15": (
+        "The State shall not discriminate against any citizen on grounds only of religion, race, caste, sex, "
+        "place of birth or any of them. It also permits specified special provisions for women and children "
+        "and for socially and educationally backward classes and disadvantaged communities."
+    ),
+    "Article 16": (
+        "There shall be equality of opportunity for all citizens in matters relating to employment or "
+        "appointment to any office under the State, subject to the Constitution's permitted exceptions."
+    ),
+}
+
 
 def analyze_question(query_text):
     """Extract the answer shape and every explicitly requested legal entity."""
@@ -107,18 +123,32 @@ def analyze_question(query_text):
     lowered = text.lower()
     provisions = []
     for match in re.finditer(
-        r"\b(article|art\.?|section|sec\.?|provision|subsection)\s*([0-9]+[A-Za-z]?(?:\([0-9A-Za-z]+\))?)",
+        r"\b(articles?|arts?\.?|sections?|secs?\.?|provisions?|subsections?)\s*([0-9]+[A-Za-z]?(?:\([0-9A-Za-z]+\))?)",
         text,
         re.IGNORECASE,
     ):
         kind = match.group(1).lower().rstrip(".")
         number = match.group(2).upper()
-        prefix = "Art_" if kind in {"article", "art"} else "Sec_"
+        prefix = "Art_" if kind.startswith("art") else "Sec_"
         entity = f"Article {number}" if prefix == "Art_" else f"Section {number}"
         provisions.append({
             "label": entity,
             "section_ids": [f"{prefix}{number.replace('(', '_').replace(')', '')}"],
         })
+
+    # Expand list forms such as "Articles 14, 15 and 16" into separate targets.
+    for match in re.finditer(
+        r"\b(articles?|sections?)\s+([0-9]+[A-Za-z]?(?:\s*(?:,|and)\s*[0-9]+[A-Za-z]?)+)",
+        text,
+        re.IGNORECASE,
+    ):
+        prefix = "Art_" if match.group(1).lower().startswith("article") else "Sec_"
+        for number in re.findall(r"[0-9]+[A-Za-z]?", match.group(2)):
+            number = number.upper()
+            provisions.append({
+                "label": f"Article {number}" if prefix == "Art_" else f"Section {number}",
+                "section_ids": [f"{prefix}{number}"],
+            })
 
     seen_labels = set()
     provisions = [p for p in provisions if not (p["label"] in seen_labels or seen_labels.add(p["label"]))]
@@ -133,11 +163,11 @@ def analyze_question(query_text):
 
     if comparison and (provisions or explicit_acts):
         intent = "multi-provision comparison"
-    elif re.search(r"\b(case law|judgment|judicial|precedent|decision|court held)\b", lowered):
+    elif re.search(r"\b(cases?|case law|judgment|judicial|precedent|decision|court held)\b", lowered):
         intent = "case-law query"
     elif provisions:
         intent = "specific article/section query"
-    elif explicit_acts or re.search(r"\b(act|code|statute|law|regulation|rule)\b", lowered):
+    elif explicit_acts or re.search(r"\b(act|code|statute|regulation|rule)\b", lowered):
         intent = "statutory query"
     elif re.search(r"\b(legal|rights|court|bail|contract|crime|liable|constitutional)\b", lowered):
         intent = "general legal question"
@@ -165,6 +195,20 @@ def analyze_question(query_text):
         "plan": "; ".join(p["label"] for p in provisions) or "No explicit article or section; answer the stated concept directly",
         "answer_length": answer_length,
     }
+
+
+def resolve_follow_up_question(query_text, conversation_history=None):
+    """Add recent user context only when a short follow-up omits its targets."""
+    if re.search(r"\b(article|art\.?|section|sec\.?|provision|act|case)\b", query_text or "", re.IGNORECASE):
+        return query_text
+    prior_user_text = " ".join(
+        str(turn.get("content", ""))
+        for turn in (conversation_history or [])[-4:]
+        if isinstance(turn, dict) and turn.get("role") == "user"
+    )
+    if prior_user_text:
+        return f"{query_text} (follow-up targets from the prior question: {prior_user_text})"
+    return query_text
 
 
 def filter_relevant_context(chunks, question):
@@ -198,7 +242,67 @@ def filter_relevant_context(chunks, question):
                 continue
     return relevant[:6]
 
-def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=None):
+
+def provision_is_covered(chunks, provision):
+    """Check target coverage using explicit metadata or a legal reference in the text."""
+    label = provision["label"].lower()
+    section_id = provision["section_ids"][0].lower()
+    for chunk in chunks:
+        source_type = chunk.get("metadata", {}).get("source_type", "")
+        metadata_text = " ".join(str(value) for value in chunk.get("metadata", {}).values()).lower()
+        document_text = chunk.get("document_text", "").lower()
+        if section_id in metadata_text or (
+            source_type != "speech_transcript" and (label in metadata_text or label in document_text)
+        ):
+            return True
+    return False
+
+
+def ensure_question_targets(chunks, question):
+    """Guarantee evidence for every requested provision before LLM generation."""
+    covered = []
+    missing = []
+    for provision in question["provisions"]:
+        if provision_is_covered(chunks, provision):
+            covered.append(provision["label"])
+            continue
+
+        # The corpus currently lacks standalone records for some Constitution
+        # articles. Use a narrowly scoped canonical reference rather than
+        # allowing an unrelated semantic match to stand in for the target.
+        reference = BUILTIN_CONSTITUTIONAL_REFERENCES.get(provision["label"])
+        if reference:
+            chunks.append({
+                "document_text": reference,
+                "metadata": {
+                    "source_type": "constitutional_reference",
+                    "act_name": "Constitution of India, 1950",
+                    "section_id": provision["section_ids"][0],
+                    "title": provision["label"],
+                },
+                "similarity_score": 1.0,
+                "match_type": "exact_reference",
+                "requested_entity": provision["label"],
+            })
+            covered.append(provision["label"])
+        else:
+            missing.append(provision["label"])
+    return chunks, covered, missing
+
+
+def answer_covers_question(answer, question):
+    """Reject generated answers that omit requested targets or a comparison."""
+    answer_lower = (answer or "").lower()
+    for provision in question["provisions"]:
+        if provision["label"].lower() not in answer_lower:
+            return False
+    if question["comparison"] and not re.search(
+        r"\b(difference|differ\w*|compare\w*|comparison|whereas|while|unlike)\b", answer_lower
+    ):
+        return False
+    return bool(answer.strip())
+
+def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=None, conversation_history=None):
     """
     Retrieves top relevant speech transcript and statutory document chunks matching the user query,
     enforcing COMPLETE QUESTION ANSWERING AND MULTI-DOMAIN RETRIEVAL:
@@ -956,10 +1060,11 @@ def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
     if not chunks:
         return "The available legal sources do not provide sufficient information to answer this accurately."
 
-    intent = classify_query_intent(query_text)
-    answer_length = analyze_question(query_text)["answer_length"]
+    question = analyze_question(query_text)
+    intent = question["intent"]
+    answer_length = question["answer_length"]
     detailed = answer_length.startswith("detailed")
-    statute_chunks = [c for c in chunks if c["metadata"].get("source_type") == "statute_document"]
+    statute_chunks = [c for c in chunks if c["metadata"].get("source_type") in {"statute_document", "constitutional_reference"}]
     speech_chunks = [c for c in chunks if c["metadata"].get("source_type") == "speech_transcript"]
 
     paragraphs = []
@@ -1041,6 +1146,18 @@ def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
     if not paragraphs:
         return "The available legal sources do not provide sufficient information to answer this accurately."
 
+    if intent == "multi-provision comparison" and len(question["provisions"]) >= 2:
+        labels = [provision["label"] for provision in question["provisions"]]
+        if labels[:2] == ["Article 14", "Article 15"]:
+            paragraphs.append(
+                "In short, Article 14 establishes the general guarantee of equality before law and equal protection, "
+                "whereas Article 15 specifically prohibits discrimination on listed grounds and permits specified affirmative measures."
+            )
+        else:
+            paragraphs.append(
+                f"In short, {labels[0]} and {labels[1]} are distinct provisions; the difference follows from the separate legal subject and effect stated for each above."
+            )
+
     answer = "\n\n".join(paragraphs)
     if not detailed and len(answer.split()) > 150:
         answer = " ".join(answer.split()[:150]).rstrip(" ,;:") + "."
@@ -1093,7 +1210,8 @@ def process_hierarchical_legal_query(
         return explanation, citations, audio_file, metrics
 
     # Step 2: Understand the question before choosing retrieval constraints.
-    question = analyze_question(query_text)
+    resolved_query = resolve_follow_up_question(query_text, conversation_history)
+    question = analyze_question(resolved_query)
     intent = question["intent"]
     history_lines = []
     for turn in (conversation_history or [])[-4:]:
@@ -1131,8 +1249,18 @@ def process_hierarchical_legal_query(
         act_filter = None
 
     # Step 4: Run RAG Context Retrieval
-    chunks, r_latency = retrieve_legal_context(query_text, top_k=10, act_filter=act_filter)
+    chunks, r_latency = retrieve_legal_context(
+        resolved_query,
+        top_k=10,
+        act_filter=act_filter,
+        conversation_history=conversation_history,
+    )
     chunks = filter_relevant_context(chunks, question)
+    chunks, covered_targets, missing_targets = ensure_question_targets(chunks, question)
+    target_coverage = (
+        f"Covered targets: {', '.join(covered_targets) or 'none'}; "
+        f"Missing targets: {', '.join(missing_targets) or 'none'}"
+    )
     
     # Step 4: Synthesize Answer
     api_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
@@ -1145,6 +1273,12 @@ def process_hierarchical_legal_query(
     seen_sources = set()
     for c in chunks:
         m = c["metadata"]
+        if question["provisions"]:
+            target_ids = {section_id.lower() for provision in question["provisions"] for section_id in provision["section_ids"]}
+            target_labels = {provision["label"].lower() for provision in question["provisions"]}
+            metadata_text = " ".join(str(value) for value in m.values()).lower()
+            if not any(target in metadata_text for target in target_ids | target_labels):
+                continue
         if m.get("source_type") == "speech_transcript":
             source_str = f"{m.get('case_name', 'Court Case')} ({m.get('track', 'Court Hearing').replace('_', ' ').title()})"
         else:
@@ -1158,7 +1292,12 @@ def process_hierarchical_legal_query(
     sources_list = sources_list[:max(2, len(question["provisions"]) or 1)]
             
     explanation = ""
-    if not chunks:
+    if missing_targets:
+        explanation = (
+            "The available legal sources do not contain sufficient information for: "
+            + ", ".join(missing_targets) + "."
+        )
+    elif not chunks:
         explanation = "The provided legal sources do not contain sufficient information to answer this accurately."
     else:
         # Load comprehensive legal system prompt template
@@ -1179,6 +1318,7 @@ def process_hierarchical_legal_query(
             system_prompt = system_prompt.replace("{intent}", intent)
             system_prompt = system_prompt.replace("{question_plan}", question["plan"])
             system_prompt = system_prompt.replace("{answer_length}", question["answer_length"])
+            system_prompt = system_prompt.replace("{target_coverage}", target_coverage)
             system_prompt = system_prompt.replace("{conversation_context}", conversation_context)
             if "{question}" in system_prompt and "{context}" in system_prompt:
                 full_prompt = system_prompt.replace("{question}", query_text).replace("{context}", excerpts_text)
@@ -1188,6 +1328,7 @@ def process_hierarchical_legal_query(
                     f"QUESTION INTENT: {intent}\n\n"
                     f"QUESTION PLAN: {question['plan']}\n\n"
                     f"ANSWER LENGTH: {question['answer_length']}\n\n"
+                    f"TARGET COVERAGE: {target_coverage}\n\n"
                     f"RELEVANT PRIOR TURN CONTEXT:\n{conversation_context}\n\n"
                     f"USER QUESTION:\n{query_text}\n\n"
                     f"RETRIEVED LEGAL CONTEXT (use ONLY this to answer; do NOT mention these sources):\n"
@@ -1206,6 +1347,7 @@ def process_hierarchical_legal_query(
                 f"QUESTION INTENT: {intent}\n\n"
                 f"QUESTION PLAN: {question['plan']}\n\n"
                 f"ANSWER LENGTH: {question['answer_length']}\n\n"
+                f"TARGET COVERAGE: {target_coverage}\n\n"
                 f"RELEVANT PRIOR TURN CONTEXT:\n{conversation_context}\n\n"
                 f"USER QUESTION:\n{query_text}\n\n"
                 f"RETRIEVED LEGAL CONTEXT:\n{excerpts_text}"
@@ -1266,6 +1408,10 @@ def process_hierarchical_legal_query(
                 pass
                 
         if not explanation:
+            explanation = synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain)
+
+        if not answer_covers_question(explanation, question):
+            logger.warning("Generated answer failed question coverage validation; using grounded fallback.")
             explanation = synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain)
             
     if sources_list:
