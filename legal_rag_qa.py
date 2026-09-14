@@ -207,7 +207,9 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
             except Exception:
                 pass
 
-    # 5. General Dense Vector Similarity Retrieval across effective Acts
+    # 5. General Dense Vector Similarity Retrieval across effective Acts.
+    # Keep this pass even after exact matches so comparisons can include
+    # explanatory passages and supporting case law.
     query_vec = encode_text_vector(query_text)
     where_clause = None
     filters = []
@@ -226,12 +228,11 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
             where_clause = filters[0]
         
     results = None
-    if not has_exact_section_matches:
-        results = collection.query(
-            query_embeddings=query_vec,
-            n_results=top_k * 3,
-            where=where_clause
-        )
+    results = collection.query(
+        query_embeddings=query_vec,
+        n_results=top_k * 3,
+        where=where_clause
+    )
     
     if results and results.get("documents") and results["documents"][0]:
         docs = results["documents"][0]
@@ -260,9 +261,13 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
             seen_texts.add(norm_txt)
             deduped_chunks.append(c)
 
-    # Sort by score and take top_k
+    # Keep exact provisions and give comparisons room for more than one
+    # requested provision before applying the final limit.
     deduped_chunks.sort(key=lambda x: x["similarity_score"], reverse=True)
-    deduped_chunks = deduped_chunks[:top_k]
+    if len(deduped_chunks) > top_k:
+        exact_chunks = [c for c in deduped_chunks if c["match_type"] == "exact_section"]
+        other_chunks = [c for c in deduped_chunks if c["match_type"] != "exact_section"]
+        deduped_chunks = (exact_chunks + other_chunks)[:top_k]
     
     latency = time.time() - t0
     return deduped_chunks, latency
@@ -270,6 +275,51 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
 # ──────────────────────────────────────────────────────────────────────
 # LLM Answer Synthesis with Tightened Inline Case Citations
 # ──────────────────────────────────────────────────────────────────────
+def classify_query_intent(query_text):
+    """Classify the response strategy without forcing general questions into a lookup."""
+    text = (query_text or "").lower()
+    comparison = bool(re.search(
+        r"\b(compare|comparison|difference between|distinguish|versus|\bvs\.?\b|two provisions|two articles)\b",
+        text,
+    ))
+    has_article_or_section = bool(re.search(
+        r"\b(article|art\.?|section|sec\.?|provision|subsection|rule|regulation)\s*[0-9]",
+        text,
+    ))
+    has_case = bool(re.search(r"\b(case law|judgment|judicial|precedent|decision|court held)\b", text))
+    has_statute = bool(re.search(r"\b(act|code|statute|law|regulation|rule)\b", text)) or any(
+        phrase in text for phrase in CANONICAL_ACT_MAP
+    )
+    if comparison and (has_article_or_section or has_statute):
+        return "multi-provision comparison"
+    if has_case:
+        return "case-law query"
+    if has_article_or_section:
+        return "specific article/section query"
+    if has_statute:
+        return "statutory query"
+    if re.search(r"\b(legal|law|rights|court|bail|contract|crime|liable|constitutional)\b", text):
+        return "general legal question"
+    return "general/non-legal question"
+
+
+def clean_text_for_speech(text):
+    """Remove presentation markup while retaining prose punctuation for TTS prosody."""
+    cleaned = text or ""
+    cleaned = re.sub(r"```[\w+-]*\s*", "", cleaned)
+    cleaned = cleaned.replace("```", "")
+    cleaned = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", cleaned)
+    cleaned = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", cleaned)
+    cleaned = re.sub(r"<[^>]+>", "", cleaned)
+    cleaned = re.sub(r"^\s{0,3}#{1,6}\s*", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"[*_~`]+", "", cleaned)
+    cleaned = re.sub(r"[\[\]{}()<>]", "", cleaned)
+    cleaned = re.sub(r"\s*[-–—]\s*", ", ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
 def synthesize_llm_answer(query_text, retrieved_chunks):
     """
     Synthesizes a clear, plain-prose explanation answering the legal prompt.
@@ -795,6 +845,7 @@ def text_to_speech_with_gender(text, gender="Female", output_filename=None):
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_filename = f"answer_{ts}.mp3"
         
+    speech_text = clean_text_for_speech(text)
     output_path = os.path.join(OUTPUT_AUDIO_DIR, output_filename)
     tts_engine_used = ""
     voice = "en-IN-NeerjaNeural" if gender == "Female" else "en-IN-PrabhatNeural"
@@ -803,7 +854,7 @@ def text_to_speech_with_gender(text, gender="Female", output_filename=None):
         import edge_tts
         import concurrent.futures
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.submit(lambda: asyncio.run(generate_edge_tts(text, output_path, voice=voice))).result()
+            executor.submit(lambda: asyncio.run(generate_edge_tts(speech_text, output_path, voice=voice))).result()
         tts_engine_used = f"edge-tts ({voice})"
     except Exception as e:
         logger.warning(f"edge-tts failed or offline ({e}). Falling back to pyttsx3...")
@@ -812,7 +863,7 @@ def text_to_speech_with_gender(text, gender="Female", output_filename=None):
             wav_path = output_path.replace(".mp3", ".wav")
             engine = pyttsx3.init()
             engine.setProperty("rate", 150)
-            engine.save_to_file(text, wav_path)
+            engine.save_to_file(speech_text, wav_path)
             engine.runAndWait()
             output_path = wav_path
             tts_engine_used = "pyttsx3 (Offline Fallback)"
@@ -833,6 +884,7 @@ def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
     if not chunks:
         return "The available legal sources do not provide sufficient information to answer this accurately."
 
+    intent = classify_query_intent(query_text)
     statute_chunks = [c for c in chunks if c["metadata"].get("source_type") == "statute_document"]
     speech_chunks = [c for c in chunks if c["metadata"].get("source_type") == "speech_transcript"]
 
@@ -855,7 +907,7 @@ def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
             title = meta.get("title", meta.get("section_id", "Statutory Provision"))
             
             # Clean merged sections (e.g. "Section 437 & 439" -> take specific section if query asked about one)
-            if " & " in title or " and " in title:
+            if intent != "multi-provision comparison" and (" & " in title or " and " in title):
                 sec_match = re.search(r'(?:section|sec\.?)\s*([0-9]+[A-Za-z]?)', query_text, re.IGNORECASE)
                 if sec_match:
                     target_sec = sec_match.group(1).upper()
@@ -887,9 +939,6 @@ def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
                 lead_in = content[0].lower() + content[1:] if not content.startswith(('A ', 'The ', 'Every ', 'No ', 'Where ', 'When ')) else content
                 paragraphs.append(f"Under **{title}** of the **{act}**, {lead_in}")
                 
-            if len(paragraphs) >= 3:
-                break
-
     # If both statutory bail and constitutional equality (Article 14) are involved, add relationship synthesis
     query_lower = query_text.lower()
     if ("bail" in query_lower or "crpc" in query_lower) and ("article 14" in query_lower or "discretion" in query_lower):
@@ -957,7 +1006,10 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
         }
         return explanation, citations, audio_file, metrics
 
-    # Step 2: Formulate Metadata Act Filter for ChromaDB
+    # Step 2: Classify the question before choosing retrieval constraints.
+    intent = classify_query_intent(query_text)
+
+    # Step 3: Formulate Metadata Act Filter for ChromaDB
     act_filter = None
     if domain == "Criminal Law":
         act_filter = [
@@ -981,8 +1033,13 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
             "Indian Evidence Act, 1872 / Bharatiya Sakshya Adhiniyam, 2023"
         ]
         
-    # Step 3: Run RAG Context Retrieval
-    chunks, r_latency = retrieve_legal_context(query_text, top_k=6, act_filter=act_filter)
+    # General questions should use semantic retrieval rather than being forced
+    # into the selected legal domain. Explicit provisions still drive exact lookup.
+    if intent == "general/non-legal question":
+        act_filter = None
+
+    # Step 4: Run RAG Context Retrieval
+    chunks, r_latency = retrieve_legal_context(query_text, top_k=10, act_filter=act_filter)
     
     # Step 4: Synthesize Answer
     api_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
@@ -1023,11 +1080,13 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
             system_prompt = system_prompt.replace("{primary_domain}", domain)
             system_prompt = system_prompt.replace("{subdomain}", subdomain)
             system_prompt = system_prompt.replace("{applicable_law}", applicable_law)
+            system_prompt = system_prompt.replace("{intent}", intent)
             if "{question}" in system_prompt and "{context}" in system_prompt:
                 full_prompt = system_prompt.replace("{question}", query_text).replace("{context}", excerpts_text)
             else:
                 full_prompt = (
                     f"{system_prompt}\n\n"
+                    f"QUESTION INTENT: {intent}\n\n"
                     f"USER QUESTION:\n{query_text}\n\n"
                     f"RETRIEVED LEGAL CONTEXT (use ONLY this to answer; do NOT mention these sources):\n"
                     f"{excerpts_text}"
@@ -1036,11 +1095,13 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
             system_prompt = (
                 f"You are a domain-specific legal question-answering assistant.\n"
                 f"Jurisdiction: {jurisdiction}. Domain: {domain}. Subdomain: {subdomain}. Applicable Law: {applicable_law}.\n"
-                f"Answer ONLY from the retrieved legal context. Do not invent legal rules. Do not mention RAG, retrieval, recordings, or hearings.\n"
+                f"Question intent: {intent}. Answer general questions normally when the context supports them.\n"
+                f"Answer ONLY from the retrieved legal context for legal claims. Do not invent legal rules. Do not mention RAG, retrieval, recordings, or hearings.\n"
                 f"If the context is insufficient, say: 'The provided legal sources do not contain sufficient information to answer this accurately.'"
             )
             full_prompt = (
                 f"{system_prompt}\n\n"
+                f"QUESTION INTENT: {intent}\n\n"
                 f"USER QUESTION:\n{query_text}\n\n"
                 f"RETRIEVED LEGAL CONTEXT:\n{excerpts_text}"
             )
