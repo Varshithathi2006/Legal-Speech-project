@@ -100,6 +100,60 @@ CANONICAL_ACT_MAP = {
     "it act": "Information Technology Act, 2000",
 }
 
+
+def analyze_question(query_text):
+    """Extract the answer shape and every explicitly requested legal entity."""
+    text = (query_text or "").strip()
+    lowered = text.lower()
+    provisions = []
+    for match in re.finditer(
+        r"\b(article|art\.?|section|sec\.?|provision|subsection)\s*([0-9]+[A-Za-z]?(?:\([0-9A-Za-z]+\))?)",
+        text,
+        re.IGNORECASE,
+    ):
+        kind = match.group(1).lower().rstrip(".")
+        number = match.group(2).upper()
+        prefix = "Art_" if kind in {"article", "art"} else "Sec_"
+        entity = f"Article {number}" if prefix == "Art_" else f"Section {number}"
+        provisions.append({
+            "label": entity,
+            "section_ids": [f"{prefix}{number.replace('(', '_').replace(')', '')}",
+                            f"Sec_{number.replace('(', '_').replace(')', '')}",
+                            f"Art_{number.replace('(', '_').replace(')', '')}"],
+        })
+
+    seen_labels = set()
+    provisions = [p for p in provisions if not (p["label"] in seen_labels or seen_labels.add(p["label"]))]
+    comparison = bool(re.search(
+        r"\b(compare|comparison|difference between|distinguish|versus|\bvs\.?\b|two provisions|two articles)\b",
+        lowered,
+    ))
+    explicit_acts = []
+    for phrase, canonical_act in CANONICAL_ACT_MAP.items():
+        if phrase in lowered and canonical_act not in explicit_acts:
+            explicit_acts.append(canonical_act)
+
+    if comparison and (provisions or explicit_acts):
+        intent = "multi-provision comparison"
+    elif re.search(r"\b(case law|judgment|judicial|precedent|decision|court held)\b", lowered):
+        intent = "case-law query"
+    elif provisions:
+        intent = "specific article/section query"
+    elif explicit_acts or re.search(r"\b(act|code|statute|law|regulation|rule)\b", lowered):
+        intent = "statutory query"
+    elif re.search(r"\b(legal|rights|court|bail|contract|crime|liable|constitutional)\b", lowered):
+        intent = "general legal question"
+    else:
+        intent = "general/non-legal question"
+
+    return {
+        "intent": intent,
+        "comparison": comparison,
+        "provisions": provisions,
+        "explicit_acts": explicit_acts,
+        "plan": "; ".join(p["label"] for p in provisions) or "No explicit article or section; answer the stated concept directly",
+    }
+
 def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=None):
     """
     Retrieves top relevant speech transcript and statutory document chunks matching the user query,
@@ -110,80 +164,67 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
     """
     t0 = time.time()
     query_lower = query_text.lower()
+    question = analyze_question(query_text)
     
     # 1. Identify all explicit Act references in query
-    explicit_acts = []
-    for phrase, canonical_act in CANONICAL_ACT_MAP.items():
-        if phrase in query_lower:
-            if canonical_act not in explicit_acts:
-                explicit_acts.append(canonical_act)
+    explicit_acts = question["explicit_acts"]
 
     # Combine domain-provided act_filter with explicitly mentioned acts
     effective_acts = list(dict.fromkeys((act_filter or []) + explicit_acts))
 
     # 2. Extract explicit section/article references from query (e.g., Section 437, Sec 34, Article 14)
-    sec_matches = re.findall(r'(?:section|sec\.?|article|art\.?)\s*([0-9]+[A-Za-z]?(?:\([0-9A-Za-z]+\))?)', query_text, re.IGNORECASE)
-    exact_sec_ids = []
-    for s in sec_matches:
-        s_clean = s.upper().replace("(", "_").replace(")", "")
-        prefix = "Art_" if "art" in query_text.lower() else "Sec_"
-        exact_sec_ids.append(f"{prefix}{s_clean}")
-        exact_sec_ids.append(f"Sec_{s_clean}")
-        exact_sec_ids.append(f"Art_{s_clean}")
-    exact_sec_ids = list(dict.fromkeys(exact_sec_ids))
-
     retrieved_chunks = []
     seen_chunk_ids = set()
     matched_act_names = set()
 
     # 3. Exact-Match Priority Retrieval across all relevant Acts
-    if exact_sec_ids:
-        for target_sec in exact_sec_ids:
-            try:
-                get_where = {"section_id": target_sec}
-                if effective_acts:
-                    if len(effective_acts) > 1:
-                        get_where = {
-                            "$and": [
-                                {"section_id": target_sec},
-                                {"act_name": {"$in": effective_acts}}
-                            ]
-                        }
-                    else:
-                        get_where = {
-                            "$and": [
-                                {"section_id": target_sec},
-                                {"act_name": effective_acts[0]}
-                            ]
-                        }
-                exact_res = collection.get(where=get_where)
-                if exact_res and exact_res.get("documents"):
-                    for doc, meta, cid in zip(exact_res["documents"], exact_res["metadatas"], exact_res["ids"]):
-                        if cid not in seen_chunk_ids:
-                            seen_chunk_ids.add(cid)
-                            act_name = meta.get("act_name", "")
-                            if act_name:
-                                matched_act_names.add(act_name)
-                            retrieved_chunks.append({
-                                "document_text": doc,
-                                "metadata": meta,
-                                "similarity_score": 0.9800,  # Exact metadata match boost
-                                "match_type": "exact_section"
-                            })
-            except Exception:
-                pass
+    if question["provisions"]:
+        for provision in question["provisions"]:
+            for target_sec in provision["section_ids"]:
+                try:
+                    get_where = {"section_id": target_sec}
+                    if effective_acts:
+                        if len(effective_acts) > 1:
+                            get_where = {
+                                "$and": [
+                                    {"section_id": target_sec},
+                                    {"act_name": {"$in": effective_acts}}
+                                ]
+                            }
+                        else:
+                            get_where = {
+                                "$and": [
+                                    {"section_id": target_sec},
+                                    {"act_name": effective_acts[0]}
+                                ]
+                            }
+                    exact_res = collection.get(where=get_where)
+                    if exact_res and exact_res.get("documents"):
+                        for doc, meta, cid in zip(exact_res["documents"], exact_res["metadatas"], exact_res["ids"]):
+                            if cid not in seen_chunk_ids:
+                                seen_chunk_ids.add(cid)
+                                act_name = meta.get("act_name", "")
+                                if act_name:
+                                    matched_act_names.add(act_name)
+                                retrieved_chunks.append({
+                                    "document_text": doc,
+                                    "metadata": meta,
+                                    "similarity_score": 0.9800,
+                                    "match_type": "exact_section",
+                                    "requested_entity": provision["label"]
+                                })
+                except Exception:
+                    pass
 
-    has_exact_section_matches = bool(retrieved_chunks)
-
-    # 4. Multi-Domain Dense Retrieval: Ensure all explicitly referenced Acts get targeted representation
-    if len(explicit_acts) > 1 and not has_exact_section_matches:
-        # Multi-domain question: run targeted search for EACH explicitly referenced Act
-        for act in explicit_acts:
+    # 4. Retrieve a targeted semantic evidence group for EACH requested entity.
+    # This prevents the first exact match from crowding out the other side of a comparison.
+    for provision in question["provisions"]:
+        for act in (effective_acts or [None]):
             try:
-                sub_q_vec = encode_text_vector(f"{act} {query_text}")
-                act_where = {"act_name": act}
+                sub_q_vec = encode_text_vector(f"{provision['label']} {query_text}")
+                act_where = {"act_name": act} if act else None
                 if source_filter:
-                    act_where = {"$and": [{"act_name": act}, {"source_type": source_filter}]}
+                    act_where = {"$and": ([{"act_name": act}] if act else []) + [{"source_type": source_filter}]}
                 act_results = collection.query(
                     query_embeddings=sub_q_vec,
                     n_results=3,
@@ -203,6 +244,7 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
                                 "metadata": meta,
                                 "similarity_score": sim_score,
                                 "match_type": "semantic_multi_act"
+                                ,"requested_entity": provision["label"]
                             })
             except Exception:
                 pass
@@ -264,10 +306,19 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
     # Keep exact provisions and give comparisons room for more than one
     # requested provision before applying the final limit.
     deduped_chunks.sort(key=lambda x: x["similarity_score"], reverse=True)
-    if len(deduped_chunks) > top_k:
-        exact_chunks = [c for c in deduped_chunks if c["match_type"] == "exact_section"]
-        other_chunks = [c for c in deduped_chunks if c["match_type"] != "exact_section"]
-        deduped_chunks = (exact_chunks + other_chunks)[:top_k]
+    # Select the best evidence for every requested entity before filling the
+    # remaining slots with directly relevant general context.
+    covered = set()
+    balanced_chunks = []
+    for chunk in deduped_chunks:
+        entity = chunk.get("requested_entity")
+        if entity and entity not in covered:
+            balanced_chunks.append(chunk)
+            covered.add(entity)
+    for chunk in deduped_chunks:
+        if chunk not in balanced_chunks:
+            balanced_chunks.append(chunk)
+    deduped_chunks = balanced_chunks[:top_k]
     
     latency = time.time() - t0
     return deduped_chunks, latency
@@ -277,30 +328,7 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
 # ──────────────────────────────────────────────────────────────────────
 def classify_query_intent(query_text):
     """Classify the response strategy without forcing general questions into a lookup."""
-    text = (query_text or "").lower()
-    comparison = bool(re.search(
-        r"\b(compare|comparison|difference between|distinguish|versus|\bvs\.?\b|two provisions|two articles)\b",
-        text,
-    ))
-    has_article_or_section = bool(re.search(
-        r"\b(article|art\.?|section|sec\.?|provision|subsection|rule|regulation)\s*[0-9]",
-        text,
-    ))
-    has_case = bool(re.search(r"\b(case law|judgment|judicial|precedent|decision|court held)\b", text))
-    has_statute = bool(re.search(r"\b(act|code|statute|law|regulation|rule)\b", text)) or any(
-        phrase in text for phrase in CANONICAL_ACT_MAP
-    )
-    if comparison and (has_article_or_section or has_statute):
-        return "multi-provision comparison"
-    if has_case:
-        return "case-law query"
-    if has_article_or_section:
-        return "specific article/section query"
-    if has_statute:
-        return "statutory query"
-    if re.search(r"\b(legal|law|rights|court|bail|contract|crime|liable|constitutional)\b", text):
-        return "general legal question"
-    return "general/non-legal question"
+    return analyze_question(query_text)["intent"]
 
 
 def clean_text_for_speech(text):
@@ -966,7 +994,13 @@ def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
 
     return "\n\n".join(paragraphs)
 
-def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender="Female"):
+def process_hierarchical_legal_query(
+    query_text,
+    domain,
+    subdomain,
+    voice_gender="Female",
+    conversation_history=None,
+):
     """
     Validates alignment, performs domain-filtered RAG retrieval, and generates
     grounded legal answers with inline citations.
@@ -1006,8 +1040,14 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
         }
         return explanation, citations, audio_file, metrics
 
-    # Step 2: Classify the question before choosing retrieval constraints.
-    intent = classify_query_intent(query_text)
+    # Step 2: Understand the question before choosing retrieval constraints.
+    question = analyze_question(query_text)
+    intent = question["intent"]
+    history_lines = []
+    for turn in (conversation_history or [])[-4:]:
+        if isinstance(turn, dict) and turn.get("role") in {"user", "assistant"} and turn.get("content"):
+            history_lines.append(f"{turn['role'].upper()}: {str(turn['content'])[:1500]}")
+    conversation_context = "\n".join(history_lines) or "No prior turn was provided."
 
     # Step 3: Formulate Metadata Act Filter for ChromaDB
     act_filter = None
@@ -1081,12 +1121,16 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
             system_prompt = system_prompt.replace("{subdomain}", subdomain)
             system_prompt = system_prompt.replace("{applicable_law}", applicable_law)
             system_prompt = system_prompt.replace("{intent}", intent)
+            system_prompt = system_prompt.replace("{question_plan}", question["plan"])
+            system_prompt = system_prompt.replace("{conversation_context}", conversation_context)
             if "{question}" in system_prompt and "{context}" in system_prompt:
                 full_prompt = system_prompt.replace("{question}", query_text).replace("{context}", excerpts_text)
             else:
                 full_prompt = (
                     f"{system_prompt}\n\n"
                     f"QUESTION INTENT: {intent}\n\n"
+                    f"QUESTION PLAN: {question['plan']}\n\n"
+                    f"RELEVANT PRIOR TURN CONTEXT:\n{conversation_context}\n\n"
                     f"USER QUESTION:\n{query_text}\n\n"
                     f"RETRIEVED LEGAL CONTEXT (use ONLY this to answer; do NOT mention these sources):\n"
                     f"{excerpts_text}"
@@ -1102,6 +1146,8 @@ def process_hierarchical_legal_query(query_text, domain, subdomain, voice_gender
             full_prompt = (
                 f"{system_prompt}\n\n"
                 f"QUESTION INTENT: {intent}\n\n"
+                f"QUESTION PLAN: {question['plan']}\n\n"
+                f"RELEVANT PRIOR TURN CONTEXT:\n{conversation_context}\n\n"
                 f"USER QUESTION:\n{query_text}\n\n"
                 f"RETRIEVED LEGAL CONTEXT:\n{excerpts_text}"
             )

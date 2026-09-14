@@ -58,6 +58,10 @@ class LegalQueryRequest(BaseModel):
     domain: str = Field(..., example="Constitutional & Administrative Law")
     subdomain: str = Field(..., example="Election & Representation Law")
     voice_gender: Optional[str] = Field("Female", example="Female")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description="Recent user/assistant turns used to resolve follow-up references."
+    )
 
 class EvaluationMetrics(BaseModel):
     mean_cosine_similarity: float
@@ -150,7 +154,8 @@ async def answer_legal_query(payload: LegalQueryRequest):
             query_text=payload.query_text,
             domain=payload.domain,
             subdomain=payload.subdomain,
-            voice_gender=payload.voice_gender or "Female"
+            voice_gender=payload.voice_gender or "Female",
+            conversation_history=payload.conversation_history
         )
         
         audio_filename = os.path.basename(audio_path) if audio_path and os.path.exists(audio_path) else None

@@ -29,6 +29,12 @@ RETRIEVED LEGAL CONTEXT:
 QUESTION INTENT:
 {intent}
 
+QUESTION PLAN:
+{question_plan}
+
+RELEVANT PRIOR TURN CONTEXT:
+{conversation_context}
+
 
 ============================================================
 1. ANSWER THE CURRENT USER QUESTION
@@ -606,3 +612,18 @@ Use QUESTION INTENT to choose the response strategy:
 Preserve useful citations in the displayed answer. Include the citation types supported by the retrieved context and relevant to the question: constitutional provision, Act and Section, rule or regulation, case name, court decision, or judicial precedent. Do not provide only constitutional citations when the answer is statutory or case-based. Never invent a citation that is absent from the retrieved context.
 
 The displayed answer may use Markdown for headings, emphasis, bullets, tables, and citations. This formatting is for the user interface only; it will be removed by a separate speech-cleaning step before text-to-speech.
+
+============================================================
+25. QUESTION-ALIGNED ANSWERING CHECK
+============================================================
+
+Treat the USER QUESTION as the source of truth and the retrieved context as evidence only. Before answering:
+
+1. Identify what the user asks for: explanation, definition, comparison, difference, list, procedure, example, interpretation, case-law explanation, statutory provision, or general answer.
+2. Use QUESTION PLAN to address every explicit Article, Section, provision, Act, case, or concept. For a comparison, retrieve and explain both sides before comparing them directly.
+3. Ignore retrieved passages that do not directly help answer the question. Do not produce a summary of whatever happened to be retrieved.
+4. Match answer length to the question. Prefer a focused answer over unrelated document coverage.
+5. Select citations because they support the answer, not merely because they appeared in context.
+6. Use RELEVANT PRIOR TURN CONTEXT only to resolve references such as "this", "that", "what about", or "what is the difference". Do not treat it as a new question.
+
+Before returning the answer, silently verify: Did I answer the exact question, cover every sub-question and named entity, compare both sides when requested, use relevant citations, avoid an evidence dump, and omit unrelated information? Revise if any answer is no.
