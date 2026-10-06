@@ -154,6 +154,15 @@ custom_css = """
     margin-bottom: 16px !important;
 }
 
+.citations-container {
+    background: #152238 !important;
+    border: 1px solid #2d4166 !important;
+    border-radius: 10px !important;
+    padding: 18px 22px !important;
+    margin-top: 14px !important;
+    margin-bottom: 16px !important;
+}
+
 @media (max-width: 760px) {
     .gradio-container {
         padding: 18px 14px 28px !important;
@@ -225,7 +234,7 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Sof
             answer_box = gr.Textbox(lines=7, label="Verified Legal Answer")
             explain_btn = gr.Button("💡 Explain in Simple Words", interactive=False, elem_classes="explain-action")
             simple_explain_box = gr.Markdown(visible=False, elem_classes="simple-explain-container")
-            citations_box = gr.Textbox(lines=3, label="Statutory & Case Citations")
+            citations_box = gr.Markdown(label="Statutory Citations & Vector Retrieval Origin", elem_classes="citations-container")
             audio_box = gr.Audio(label="Spoken Neural Voice Explanation", type="filepath")
 
     submit_btn.click(
