@@ -397,9 +397,34 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
             except Exception:
                 pass
 
-    # 5. General Dense Vector Similarity Retrieval across effective Acts.
-    # Keep this pass even after exact matches so comparisons can include
-    # explanatory passages and supporting case law.
+    # 5. Dedicated Spoken Audio Recording Retrieval Pass
+    # Ensures spoken courtroom audio recordings are ALWAYS retrieved alongside statutory documents.
+    try:
+        query_vec = encode_text_vector(query_text)
+        speech_results = collection.query(
+            query_embeddings=query_vec,
+            n_results=top_k,
+            where={"source_type": "speech_transcript"}
+        )
+        if speech_results and speech_results.get("documents") and speech_results["documents"][0]:
+            docs = speech_results["documents"][0]
+            metas = speech_results["metadatas"][0]
+            distances = speech_results["distances"][0] if "distances" in speech_results else [0.0]*len(docs)
+            ids = speech_results["ids"][0] if "ids" in speech_results else [str(i) for i in range(len(docs))]
+            for doc, meta, dist, cid in zip(docs, metas, distances, ids):
+                if cid not in seen_chunk_ids:
+                    seen_chunk_ids.add(cid)
+                    sim_score = max(0.0, round(1.0 - float(dist), 4)) if dist <= 1.0 else round(1.0 / (1.0 + float(dist)), 4)
+                    retrieved_chunks.append({
+                        "document_text": doc,
+                        "metadata": meta,
+                        "similarity_score": sim_score,
+                        "match_type": "speech_recording"
+                    })
+    except Exception as se:
+        logger.warning(f"Spoken audio recording pass exception: {se}")
+
+    # 6. General Dense Vector Similarity Retrieval across effective Acts.
     query_vec = encode_text_vector(query_text)
     where_clause = None
     filters = []
@@ -418,11 +443,14 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
             where_clause = filters[0]
         
     results = None
-    results = collection.query(
-        query_embeddings=query_vec,
-        n_results=top_k * 3,
-        where=where_clause
-    )
+    try:
+        results = collection.query(
+            query_embeddings=query_vec,
+            n_results=top_k * 3,
+            where=where_clause
+        )
+    except Exception:
+        pass
     
     if results and results.get("documents") and results["documents"][0]:
         docs = results["documents"][0]
@@ -442,7 +470,7 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
                     "match_type": "semantic"
                 })
             
-    # Deduplicate retrieved_chunks by document text content to prevent duplicate paragraphs
+    # Deduplicate retrieved_chunks by document text content
     deduped_chunks = []
     seen_texts = set()
     for c in retrieved_chunks:
@@ -451,21 +479,23 @@ def retrieve_legal_context(query_text, top_k=6, source_filter=None, act_filter=N
             seen_texts.add(norm_txt)
             deduped_chunks.append(c)
 
-    # Keep exact provisions and give comparisons room for more than one
-    # requested provision before applying the final limit.
     deduped_chunks.sort(key=lambda x: x["similarity_score"], reverse=True)
-    # Select the best evidence for every requested entity before filling the
-    # remaining slots with directly relevant general context.
-    covered = set()
+    
+    # Balanced evidence selection: Guarantee both Spoken Audio Recordings and Statutory Documents
+    speech_chunks = [c for c in deduped_chunks if c.get("metadata", {}).get("source_type") == "speech_transcript"]
+    doc_chunks = [c for c in deduped_chunks if c.get("metadata", {}).get("source_type") != "speech_transcript"]
+
     balanced_chunks = []
+    if doc_chunks:
+        balanced_chunks.extend(doc_chunks[:3])
+    if speech_chunks:
+        balanced_chunks.extend(speech_chunks[:3])
+
     for chunk in deduped_chunks:
-        entity = chunk.get("requested_entity")
-        if entity and entity not in covered:
+        if chunk not in balanced_chunks and len(balanced_chunks) < top_k:
             balanced_chunks.append(chunk)
-            covered.add(entity)
-    for chunk in deduped_chunks:
-        if chunk not in balanced_chunks:
-            balanced_chunks.append(chunk)
+
+    balanced_chunks.sort(key=lambda x: x["similarity_score"], reverse=True)
     deduped_chunks = balanced_chunks[:top_k]
     
     latency = time.time() - t0
