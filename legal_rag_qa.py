@@ -1427,82 +1427,46 @@ def process_hierarchical_legal_query(
 
 def format_retrieved_sources_provenance(chunks, domain, subdomain):
     """
-    Formats statutory citations and detailed embedding retrieval origin provenance
-    for both spoken audio recordings and statutory document chunks.
+    Concise indicator showing whether information was retrieved from a spoken audio recording or statutory document.
     """
     if not chunks:
-        return f"- General Indian Legislation governing **{domain}** (Subdomain: **{subdomain}**)"
-    
-    seen_sources = set()
-    sources_list = []
+        return f"📍 **Retrieved From:** 📜 **Statutory Document** (*General {domain} — {subdomain}*)"
+
+    has_rec = any(c.get("metadata", {}).get("source_type") == "speech_transcript" for c in chunks)
+    has_doc = any(c.get("metadata", {}).get("source_type") != "speech_transcript" for c in chunks)
+
+    doc_sources = []
+    rec_sources = []
+    seen = set()
+
     for c in chunks:
         m = c.get("metadata", {})
-        if m.get("source_type") == "speech_transcript":
-            source_str = f"{m.get('case_name', 'Court Case')} ({m.get('track', 'Court Hearing').replace('_', ' ').title()})"
+        stype = m.get("source_type")
+        if stype == "speech_transcript":
+            name = f"{m.get('case_name', 'Court Proceeding')} ({m.get('track', 'Audio Recording').replace('_', ' ').title()})"
+            if name not in seen:
+                seen.add(name)
+                rec_sources.append(name)
         else:
-            source_str = f"{m.get('act_name', 'Statute')} — {m.get('section_id', '')}"
-        if source_str not in seen_sources:
-            seen_sources.add(source_str)
-            sources_list.append(source_str)
-            
-    summary_citations = "\n".join([f"- {s}" for s in sources_list[:4]])
-    
-    rec_count = sum(1 for c in chunks if c.get("metadata", {}).get("source_type") == "speech_transcript")
-    doc_count = sum(1 for c in chunks if c.get("metadata", {}).get("source_type") != "speech_transcript")
+            name = f"{m.get('act_name', 'Statute')} — {m.get('section_id', '')}"
+            if name not in seen:
+                seen.add(name)
+                doc_sources.append(name)
 
-    provenance_lines = []
-    provenance_lines.append(summary_citations)
-    provenance_lines.append("\n---\n")
-    provenance_lines.append(f"### 📍 Vector Retrieval Origin & Embedding Provenance ({len(chunks)} Chunks Retrieved)")
-    provenance_lines.append(f"• **🎙️ Spoken Audio Recordings:** {rec_count} transcript chunk(s)")
-    provenance_lines.append(f"• **📜 Statutory Documents:** {doc_count} section chunk(s)\n")
-
-    for idx, c in enumerate(chunks, 1):
-        m = c.get("metadata", {})
-        score = c.get("similarity_score", 0.0)
-        match_type = c.get("match_type", "semantic")
-        text_snippet = c.get("document_text", "").strip()
-        if len(text_snippet) > 280:
-            text_snippet = text_snippet[:280] + "..."
-
-        source_type = m.get("source_type")
-        if source_type == "speech_transcript":
-            case_name = m.get("case_name", "Court Proceedings")
-            track = m.get("track", "Supreme Court Hearing").replace("_", " ").title()
-            video_id = m.get("video_id", "N/A")
-            start_s = m.get("start_time", 0.0)
-            end_s = m.get("end_time", 0.0)
-
-            start_min = f"{int(start_s // 60)}m {int(start_s % 60):02d}s"
-            end_min = f"{int(end_s // 60)}m {int(end_s % 60):02d}s"
-
-            speakers = m.get("speakers", [])
-            speakers_str = ", ".join(speakers) if isinstance(speakers, list) else str(speakers or "Multi-Speaker")
-
-            provenance_lines.append(f"#### Excerpt {idx}: 🎙️ [Spoken Audio Recording] {case_name}")
-            provenance_lines.append(f"- **Source Track:** {track}")
-            provenance_lines.append(f"- **Video ID:** `{video_id}`")
-            provenance_lines.append(f"- **Audio Timestamps:** `{start_s:.1f}s - {end_s:.1f}s` ({start_min} – {end_min})")
-            provenance_lines.append(f"- **Active Speakers:** `{speakers_str}`")
-            provenance_lines.append(f"- **Embedding Similarity Score:** `{score:.4f}`")
-            provenance_lines.append(f"- **Audio Transcript Snippet:**\n  > \"{text_snippet}\"")
-            provenance_lines.append("")
-        else:
-            act_name = m.get("act_name", "Indian Statute")
-            sec_id = m.get("section_id", "Provision")
-            title = m.get("title", sec_id)
-
-            score_tag = f"`{score:.4f}`"
-            if match_type == "exact_section" or score >= 0.9:
-                score_tag += " *(Rank-1 Exact Statutory Boost)*"
-
-            provenance_lines.append(f"#### Excerpt {idx}: 📜 [Statutory Document] {act_name}")
-            provenance_lines.append(f"- **Statute & Section:** `{sec_id}` ({title})")
-            provenance_lines.append(f"- **Embedding Similarity Score:** {score_tag}")
-            provenance_lines.append(f"- **Statutory Text Snippet:**\n  > \"{text_snippet}\"")
-            provenance_lines.append("")
-
-    return "\n".join(provenance_lines)
+    if has_rec and has_doc:
+        doc_str = ", ".join(doc_sources[:2]) if doc_sources else "Statutory Provisions"
+        rec_str = ", ".join(rec_sources[:2]) if rec_sources else "Court Hearing Transcripts"
+        return (
+            f"📍 **Retrieved From:** Both 🎙️ **Spoken Audio Recording** & 📜 **Statutory Document**\n\n"
+            f"- 📜 **Statutory Document:** *{doc_str}*\n"
+            f"- 🎙️ **Spoken Audio Recording:** *{rec_str}*"
+        )
+    elif has_rec:
+        rec_str = ", ".join(rec_sources[:3]) if rec_sources else "Courtroom Hearing Audio"
+        return f"📍 **Retrieved From:** 🎙️ **Spoken Audio Recording** (*{rec_str}*)"
+    else:
+        doc_str = ", ".join(doc_sources[:3]) if doc_sources else "Statutory Code"
+        return f"📍 **Retrieved From:** 📜 **Statutory Document** (*{doc_str}*)"
 
 def process_domain_query(query_text, domain, voice_gender="Female", verbose=False):
     """
