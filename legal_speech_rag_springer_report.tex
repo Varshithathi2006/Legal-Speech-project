@@ -235,8 +235,8 @@ Switching from \texttt{all-MiniLM-L6-v2} (384 dims) to \texttt{BAAI/bge-large-en
 \section{User Interface and Deployment}
 The system is deployed as a dual-interface application:
 \begin{enumerate}
-    \item \textbf{Gradio Studio Studio} (\texttt{app\_hf.py}): Deployed on Hugging Face Spaces (\texttt{Varshitha006/legal-speech-api}) featuring dynamic legal area detection, TTS voice selection, citations, and the interactive ``💡 Explain in Simple Words'' button.
-    \item \textbf{Streamlit QA & Summarization Studio} (\texttt{app.py}): Local analytical dashboard displaying live ChromaDB statistics, diagnostic metrics, and audio waveforms.
+    \item \textbf{Gradio Studio UI} (\texttt{app\_hf.py}): Deployed on Hugging Face Spaces (\texttt{Varshitha006/legal-speech-api}) featuring dynamic legal area detection, TTS voice selection, concise vector origin tags, and the interactive ``💡 Explain in Simple Words'' layman generator button.
+    \item \textbf{Streamlit QA \& Summarization Studio} (\texttt{app.py}): Local analytical dashboard displaying live ChromaDB statistics, diagnostic metrics, and audio waveforms.
 \end{enumerate}
 
 
@@ -244,6 +244,10 @@ The system is deployed as a dual-interface application:
 We presented an end-to-end framework for legal speech dataset curation and grounded Spoken RAG QA. By processing 84.98 hours of multi-speaker audio into 4,260 indexed vector chunks and implementing exact section metadata boosting, our system eliminates cross-act section collisions and achieves 100.0\% Context Precision. Grounded answers are augmented with neural Indian English speech generation and layman-friendly plain-English explanations.
 
 Future work will focus on fine-tuning Whisper ASR models on specialized Indian legal terminology, expanding real-time courtroom audio streaming, and indexing full judgment texts across regional Indian languages.
+
+
+\section*{Acknowledgements}
+The authors express their gratitude to the Department of Artificial Intelligence and Computer Science, Amrita School of Engineering, Amrita Vishwa Vidyapeetham, Coimbatore, for providing the computational infrastructure and guidance for the 22AIE450 Speech Processing course project.
 
 
 \begin{thebibliography}{99}
