@@ -17,6 +17,7 @@ except Exception:
 
 from legal_rag_qa import (
     process_hierarchical_legal_query,
+    explain_legal_answer_simple,
     LEGAL_DOMAINS,
     SUBDOMAIN_APPLICABLE_LAW
 )
@@ -55,7 +56,7 @@ def update_detected_area(query):
 
 def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode, manual_domain, manual_subdomain, voice_gender):
     if not query or not query.strip():
-        return "Please enter a legal question.", "", None
+        return "Please enter a legal question.", "", None, gr.update(interactive=False), gr.update(value="", visible=False)
     
     try:
         domain = manual_domain if manual_mode else detected_domain
@@ -67,13 +68,22 @@ def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode,
             subdomain=subdomain,
             voice_gender=voice_gender or "Female"
         )
-        return ans, cites, aud_path
+        is_valid = bool(ans and not ans.startswith("Please enter") and not ans.startswith("⚠️"))
+        return ans, cites, aud_path, gr.update(interactive=is_valid), gr.update(value="", visible=False)
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
         print(f"Error processing query: {error_details}")
         error_msg = f"⚠️ **An error occurred during query processing:** {str(e)}\n\nPlease try rephrasing your legal question or selecting the domain again."
-        return error_msg, "N/A - Execution Error", None
+        return error_msg, "N/A - Execution Error", None, gr.update(interactive=False), gr.update(value="", visible=False)
+
+
+def handle_explain_simple(verified_answer, citations):
+    if not verified_answer or not verified_answer.strip() or verified_answer.startswith("Please enter") or verified_answer.startswith("⚠️"):
+        return gr.update(value="⚠️ Please generate a valid verified legal answer first.", visible=True)
+    explanation = explain_legal_answer_simple(verified_answer, citations)
+    return gr.update(value=explanation, visible=True)
+
 
 # Default subdomains for initial load
 default_domain = "Constitutional & Administrative Law"
@@ -119,6 +129,29 @@ custom_css = """
     min-height: 52px !important;
     font-size: 1.05rem !important;
     font-weight: 700 !important;
+}
+
+.explain-action {
+    margin-top: 12px !important;
+    margin-bottom: 14px !important;
+    font-size: 0.98rem !important;
+    font-weight: 600 !important;
+    background: #233454 !important;
+    color: #ffffff !important;
+    border: 1px solid #3d5278 !important;
+}
+
+.explain-action:enabled:hover {
+    background: #2d4570 !important;
+    border-color: #589bfe !important;
+}
+
+.simple-explain-container {
+    background: #1a2740 !important;
+    border: 1px solid #2e4368 !important;
+    border-radius: 10px !important;
+    padding: 18px 22px !important;
+    margin-bottom: 16px !important;
 }
 
 @media (max-width: 760px) {
@@ -190,13 +223,21 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio & API", theme=gr.themes.Sof
             
         with gr.Column(scale=6, elem_classes="answer-panel"):
             answer_box = gr.Textbox(lines=7, label="Verified Legal Answer")
+            explain_btn = gr.Button("💡 Explain in Simple Words", interactive=False, elem_classes="explain-action")
+            simple_explain_box = gr.Markdown(visible=False, elem_classes="simple-explain-container")
             citations_box = gr.Textbox(lines=3, label="Statutory & Case Citations")
             audio_box = gr.Audio(label="Spoken Neural Voice Explanation", type="filepath")
 
     submit_btn.click(
         handle_gradio_query,
         inputs=[query_box, detected_domain, detected_subdomain, advanced_mode, domain_dropdown, subdomain_dropdown, voice_choice],
-        outputs=[answer_box, citations_box, audio_box]
+        outputs=[answer_box, citations_box, audio_box, explain_btn, simple_explain_box]
+    )
+
+    explain_btn.click(
+        handle_explain_simple,
+        inputs=[answer_box, citations_box],
+        outputs=[simple_explain_box]
     )
 
 # Launch the Gradio app directly with show_api=False to prevent JSON schema parse errors

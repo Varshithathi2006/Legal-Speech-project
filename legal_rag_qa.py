@@ -1498,6 +1498,152 @@ def process_legal_rag_query(query_text, verbose=False):
 # ──────────────────────────────────────────────────────────────────────
 # Interactive CLI Loop
 # ──────────────────────────────────────────────────────────────────────
+# Plain-English Explanation Generator
+# ──────────────────────────────────────────────────────────────────────
+def explain_legal_answer_simple(verified_legal_answer, citations=""):
+    """
+    Generates a simple, layman-friendly explanation of the verified legal answer and citations
+    using a non-legal assistant system prompt.
+    """
+    if not verified_legal_answer or not verified_legal_answer.strip():
+        return "⚠️ No verified legal answer available to explain."
+
+    prompt = f"""You are a legal assistant explaining Indian law to a person with no legal background.
+
+Your task is to explain the provided verified legal answer in simple, everyday language.
+
+Rules:
+1. Do NOT change, reinterpret, or expand the legal meaning of the verified answer.
+2. Do NOT introduce new legal conclusions that are not supported by the provided answer or cited authorities.
+3. Keep important legal conditions, exceptions, limitations, and requirements intact.
+4. Replace legal jargon with simple words wherever possible.
+5. If a legal term is necessary, explain it briefly in parentheses.
+6. Use a short practical example when it helps understanding.
+7. Clearly distinguish between:
+   - What the law says
+   - What it means in simple terms
+   - A simple example, if useful
+8. Do not present the explanation as legal advice.
+9. Do not remove important statutory or case-law qualifications.
+10. The explanation should be understandable to a college student or an ordinary person with no legal education.
+11. Keep the explanation concise and conversational.
+12. Do not fabricate cases, sections, facts, or legal rules.
+
+Output format:
+
+### In Simple Words
+[2–4 paragraph explanation in plain English]
+
+### Simple Example
+[One short practical example, only if useful]
+
+### Important Point
+[One sentence highlighting the most important legal condition or limitation]
+
+Verified Legal Answer:
+{verified_legal_answer.strip()}
+
+Statutory & Case Citations:
+{citations.strip() if citations else 'N/A'}"""
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    hf_token = os.environ.get("HF_TOKEN", "") or os.environ.get("HUGGINGFACEHUB_API_TOKEN", "")
+
+    explanation = ""
+
+    # 1. Try Gemini API if key available
+    if api_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            for g_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
+                try:
+                    model = genai.GenerativeModel(g_model)
+                    resp = model.generate_content(prompt)
+                    if resp.text:
+                        explanation = resp.text.strip()
+                        break
+                except Exception:
+                    continue
+        except Exception as ge:
+            logger.warning(f"Gemini API call for simple explanation failed: {ge}")
+
+    # 2. Try OpenAI API if key available
+    if not explanation and openai_key:
+        try:
+            import openai
+            client = openai.OpenAI(api_key=openai_key)
+            resp = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            explanation = resp.choices[0].message.content.strip()
+        except Exception as oe:
+            logger.warning(f"OpenAI API call for simple explanation failed: {oe}")
+
+    # 3. Try Hugging Face API if token available
+    if not explanation and hf_token:
+        try:
+            from huggingface_hub import InferenceClient
+            client = InferenceClient(token=hf_token, timeout=15)
+            candidate_models = [
+                "meta-llama/Llama-3.2-3B-Instruct",
+                "Qwen/Qwen2.5-72B-Instruct",
+                "mistralai/Mistral-7B-Instruct-v0.3"
+            ]
+            for hf_model in candidate_models:
+                try:
+                    resp = client.chat_completion(
+                        model=hf_model,
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=750,
+                        temperature=0.3
+                    )
+                    raw_output = resp.choices[0].message.content.strip()
+                    if raw_output and len(raw_output) > 20:
+                        explanation = raw_output
+                        break
+                except Exception:
+                    continue
+        except Exception as hfe:
+            logger.warning(f"Hugging Face API call for simple explanation failed: {hfe}")
+
+    # 4. Fallback synthesis if no LLM APIs are active
+    if not explanation:
+        explanation = synthesize_fallback_simple_explanation(verified_legal_answer, citations)
+
+    return explanation
+
+
+def synthesize_fallback_simple_explanation(verified_answer, citations):
+    cleaned_ans = re.sub(r'[\*\#_`]', '', verified_answer).strip()
+    paragraphs = [p.strip() for p in cleaned_ans.split('\n') if p.strip()]
+    
+    first_para = paragraphs[0] if paragraphs else verified_answer
+    rest = " ".join(paragraphs[1:]) if len(paragraphs) > 1 else ""
+    
+    simple_words = (
+        f"In plain English, this legal rule establishes how the law applies in practice.\n\n"
+        f"**What the law says:** {first_para}\n\n"
+        f"**What it means in simple terms:** {rest if rest else 'Any individual or entity subject to these provisions must adhere strictly to statutory procedures and legal qualifications laid down by the court.'}"
+    )
+    
+    example = (
+        "For example, if a citizen or organisation initiates legal proceedings or contracts under these provisions, "
+        "they must comply with the procedural rules and eligibility criteria specified by statute to ensure their claim or agreement is valid."
+    )
+    
+    important_point = "All statutory rights and remedies remain subject to the specific legal limitations and procedural qualifications mandated by Indian law."
+    
+    return (
+        f"### In Simple Words\n{simple_words}\n\n"
+        f"### Simple Example\n{example}\n\n"
+        f"### Important Point\n{important_point}"
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
 def run_cli():
     parser = argparse.ArgumentParser(description="Legal Speech RAG Question-Answering & TTS System")
     parser.add_argument("query", nargs="*", help="Optional legal question to query directly")
