@@ -644,9 +644,6 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=gr.themes.Soft(prim
                         <p class="brand-subtitle">Grounded statutory synthesis and multi-speaker courtroom retrieval with neural voice narration</p>
                     </div>
                 </div>
-                <div class="status-pill">
-                    <span class="status-dot"></span> Pipeline Ready
-                </div>
             </div>
             
             <div class="capabilities-bar">
@@ -747,7 +744,6 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=gr.themes.Soft(prim
             gr.HTML("""
             <div class="panel-header">
                 <span class="panel-header-title">Legal Analysis & Evidence Workspace</span>
-                <span class="verified-tag">Grounded Synthesis</span>
             </div>
             """)
 
