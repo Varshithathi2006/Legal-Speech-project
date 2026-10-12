@@ -95,10 +95,42 @@ def update_detected_area(query):
     return card_html, domain, subdomain
 
 
+def clean_citation_text(raw_cites):
+    if not raw_cites or not str(raw_cites).strip():
+        return ""
+    text = str(raw_cites).strip()
+    
+    # Strip any and all unicode emojis (e.g. pin, scroll, mic, lightning)
+    emoji_pattern = re.compile(
+        r'[\U00010000-\U0010ffff]|[\u2600-\u27bf]|[\u2300-\u23ff]|[\u2b50-\u2b55]|[\ufe00-\ufe0f]',
+        flags=re.UNICODE
+    )
+    cleaned = emoji_pattern.sub('', text)
+    cleaned = cleaned.replace("**Retrieved From:**", "").replace("Retrieved From:", "").strip()
+    
+    # Convert markdown bold and italic to inline HTML with explicit dark navy styling
+    cleaned = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color:#17243A !important;">\1</strong>', cleaned)
+    cleaned = re.sub(r'\*(.*?)\*', r'<em style="color:#2D3748 !important;">\1</em>', cleaned)
+    
+    if "\n" in cleaned:
+        items = [line.strip().lstrip("- ").strip() for line in cleaned.split("\n") if line.strip()]
+        rendered_items = "".join([f'<li style="color:#17243A !important; margin-bottom:5px; font-size:13.5px; line-height:1.5;">{it}</li>' for it in items])
+        body_html = f'<ul style="margin:6px 0 0 16px; padding:0; color:#17243A !important;">{rendered_items}</ul>'
+    else:
+        body_html = f'<div style="color:#17243A !important; font-size:13.5px; font-weight:500; margin-top:4px; line-height:1.5;">{cleaned}</div>'
+    
+    return f"""
+<div class="citations-card" style="background:#F8FAFC !important; border:1px solid #D1D9E2 !important; border-left:3px solid #2563EB !important; border-radius:8px !important; padding:12px 16px !important; margin-top:10px !important; margin-bottom:12px !important;">
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#52647A !important; font-weight:700;">Supporting Evidence & Provenance</div>
+    {body_html}
+</div>
+"""
+
+
 def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode, manual_domain, manual_subdomain, voice_gender):
     if not query or not query.strip():
         empty_law = format_applicable_law_card("Constitutional & Administrative Law", "Fundamental Rights")
-        return "Please enter a legal question to initiate statutory analysis.", empty_law, "", None, gr.update(interactive=False), gr.update(value="", visible=False)
+        return "Please enter a legal question to initiate statutory analysis.", empty_law, "", gr.update(value=None, visible=False), gr.update(interactive=False), gr.update(value="", visible=False)
     
     try:
         domain = manual_domain if manual_mode else detected_domain
@@ -118,21 +150,26 @@ def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode,
         is_valid = bool(ans and not ans.startswith("Please enter") and not ans.startswith("Error") and not ans.startswith("\u26a0"))
         
         law_card_html = format_applicable_law_card(domain, subdomain)
+        clean_cites_html = clean_citation_text(cites)
         
-        return ans, law_card_html, cites, aud_path, gr.update(interactive=is_valid), gr.update(value="", visible=False)
+        audio_update = gr.update(value=aud_path, visible=True) if (aud_path and os.path.exists(aud_path)) else gr.update(value=None, visible=False)
+        
+        return ans, law_card_html, clean_cites_html, audio_update, gr.update(interactive=is_valid), gr.update(value="", visible=False)
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
         print(f"Error processing query: {error_details}")
         error_msg = f"**An error occurred during query processing:** {str(e)}\n\nPlease try rephrasing your legal question or selecting the domain again."
         empty_law = format_applicable_law_card(detected_domain, detected_subdomain)
-        return error_msg, empty_law, "Execution Error", None, gr.update(interactive=False), gr.update(value="", visible=False)
+        return error_msg, empty_law, "", gr.update(value=None, visible=False), gr.update(interactive=False), gr.update(value="", visible=False)
 
 
 def handle_explain_simple(verified_answer, citations):
     if not verified_answer or not verified_answer.strip() or verified_answer.startswith("Please enter") or verified_answer.startswith("Error") or verified_answer.startswith("\u26a0"):
         return gr.update(value="<div style='color:#52647A; font-size:13.5px; padding:10px;'>Generate a verified legal answer first to view the client-friendly explanation.</div>", visible=True)
-    explanation = explain_legal_answer_simple(verified_answer, citations)
+    
+    raw_citations_for_prompt = re.sub(r'<[^>]+>', ' ', str(citations)).strip() if citations else ""
+    explanation = explain_legal_answer_simple(verified_answer, raw_citations_for_prompt)
     
     clean_exp = explanation
     clean_exp = re.sub(r'###?\s*In Simple Words', '#### 1. Core Meaning', clean_exp, flags=re.IGNORECASE)
@@ -494,8 +531,9 @@ body, .gradio-container, .dark, .dark body, .dark .gradio-container {
     color: #C65D21 !important;
 }
 
-.citations-card {
+.citations-card, .dark .citations-card {
     background: #F8FAFC !important;
+    background-color: #F8FAFC !important;
     border: 1px solid #D1D9E2 !important;
     border-left: 3px solid #2563EB !important;
     border-radius: 8px !important;
@@ -507,11 +545,205 @@ body, .gradio-container, .dark, .dark body, .dark .gradio-container {
     line-height: 1.5 !important;
 }
 
-.audio-card {
-    background: #F8FAFC !important;
+.citations-card *, .dark .citations-card *,
+.citations-container *, .dark .citations-container * {
+    color: #17243A !important;
+}
+
+/* ==========================================================================
+   Accordion - High Contrast Light Surface
+   ========================================================================== */
+.accordion, .dark .accordion,
+details, .dark details,
+.gradio-accordion, .dark .gradio-accordion,
+details.accordion, .dark details.accordion {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
     border: 1px solid #D1D9E2 !important;
     border-radius: 8px !important;
+    margin-top: 14px !important;
+    margin-bottom: 14px !important;
+    overflow: hidden !important;
+    box-shadow: 0 1px 2px rgba(23, 36, 58, 0.03) !important;
+}
+
+details summary, .dark details summary,
+.accordion > .label-wrap, .dark .accordion > .label-wrap,
+summary.label-wrap, .dark summary.label-wrap {
+    background: #F8FAFC !important;
+    background-color: #F8FAFC !important;
+    border: none !important;
+    border-bottom: 1px solid #E2E8F0 !important;
     padding: 10px 14px !important;
+    cursor: pointer !important;
+    color: #17243A !important;
+}
+
+details summary:hover, .dark details summary:hover {
+    background: #EEF2F6 !important;
+    background-color: #EEF2F6 !important;
+}
+
+details summary *, .dark details summary *,
+details summary span, .dark details summary span,
+.accordion summary *, .dark .accordion summary *,
+.accordion .label-wrap *, .dark .accordion .label-wrap * {
+    color: #17243A !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+}
+
+details > div, .dark details > div,
+details[open] > div, .dark details[open] > div {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    padding: 14px !important;
+}
+
+/* ==========================================================================
+   Radio Group & Form Fields (Full Dark Mode Override)
+   ========================================================================== */
+.gradio-radio, .dark .gradio-radio,
+fieldset.gradio-radio, .dark fieldset.gradio-radio,
+.block.gradio-radio, .dark .block.gradio-radio {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    border: 1px solid #D1D9E2 !important;
+    border-radius: 8px !important;
+    padding: 12px 14px !important;
+    margin-top: 14px !important;
+    box-shadow: 0 1px 2px rgba(23, 36, 58, 0.03) !important;
+}
+
+.gradio-radio > .label-wrap, .dark .gradio-radio > .label-wrap,
+.gradio-radio .label-wrap span, .dark .gradio-radio .label-wrap span,
+.gradio-radio > label, .dark .gradio-radio > label,
+.gradio-radio > label > span, .dark .gradio-radio > label > span {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #17243A !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin-bottom: 8px !important;
+    display: inline-block !important;
+}
+
+.gradio-radio .wrap, .dark .gradio-radio .wrap {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+
+.gradio-radio label, .dark .gradio-radio label,
+.gradio-radio .wrap > label, .dark .gradio-radio .wrap > label {
+    background: #F8FAFC !important;
+    background-color: #F8FAFC !important;
+    border: 1px solid #D1D9E2 !important;
+    border-radius: 6px !important;
+    padding: 8px 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    flex: 1 1 200px !important;
+}
+
+.gradio-radio label:hover, .dark .gradio-radio label:hover {
+    background: #EEF2F6 !important;
+    border-color: #CBD5E1 !important;
+}
+
+.gradio-radio label.selected, .dark .gradio-radio label.selected,
+.gradio-radio label:has(input:checked), .dark .gradio-radio label:has(input:checked) {
+    background: #FFF7ED !important;
+    background-color: #FFF7ED !important;
+    border: 1.5px solid #C65D21 !important;
+    box-shadow: 0 0 0 1px #C65D21 !important;
+}
+
+.gradio-radio label span, .dark .gradio-radio label span,
+.gradio-radio label input + span, .dark .gradio-radio label input + span {
+    color: #17243A !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+}
+
+.gradio-radio label.selected span, .dark .gradio-radio label.selected span,
+.gradio-radio label:has(input:checked) span, .dark .gradio-radio label:has(input:checked) span {
+    color: #C65D21 !important;
+    font-weight: 600 !important;
+}
+
+.gradio-radio input[type="radio"], .dark .gradio-radio input[type="radio"] {
+    accent-color: #C65D21 !important;
+    width: 15px !important;
+    height: 15px !important;
+}
+
+/* ==========================================================================
+   Audio Card (Clean styling, no orange pill badges)
+   ========================================================================== */
+.audio-card, .dark .audio-card {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    border: 1px solid #D1D9E2 !important;
+    border-radius: 8px !important;
+    padding: 12px 14px !important;
+    margin-top: 10px !important;
+    box-shadow: 0 1px 2px rgba(23, 36, 58, 0.03) !important;
+}
+
+.audio-card .label-wrap, .dark .audio-card .label-wrap,
+.audio-card label span, .dark .audio-card label span {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #17243A !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 0 8px 0 !important;
+    margin: 0 !important;
+    display: block !important;
+}
+
+/* Neutralize label badge pills */
+.label-wrap, .dark .label-wrap,
+span.has-info, .dark span.has-info,
+.block > label, .dark .block > label,
+label > span, .dark label > span,
+.gr-form > label, .dark .gr-form > label {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #17243A !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* Dropdown & Checkbox overrides */
+.gradio-dropdown, .dark .gradio-dropdown,
+.gradio-dropdown select, .dark .gradio-dropdown select {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    border-color: #D1D9E2 !important;
+    color: #17243A !important;
+}
+
+.gradio-checkbox label, .dark .gradio-checkbox label {
+    background: transparent !important;
+    color: #17243A !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
 }
 
 @media (max-width: 900px) {
@@ -524,8 +756,59 @@ body, .gradio-container, .dark, .dark body, .dark .gradio-container {
 }
 """
 
+# Client script to permanently prevent and remove dark mode injection
+js_light_enforcer = """
+() => {
+    document.documentElement.classList.remove('dark');
+    document.body.classList.remove('dark');
+    const observer = new MutationObserver(() => {
+        if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+        }
+        if (document.body.classList.contains('dark')) {
+            document.body.classList.remove('dark');
+        }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+}
+"""
+
+theme = gr.themes.Soft(
+    primary_hue="orange",
+    neutral_hue="slate",
+    font=[gr.themes.GoogleFont("Inter"), "sans-serif"],
+).set(
+    body_background_fill="#F8FAFC",
+    body_background_fill_dark="#F8FAFC",
+    block_background_fill="#FFFFFF",
+    block_background_fill_dark="#FFFFFF",
+    block_border_color="#D1D9E2",
+    block_border_color_dark="#D1D9E2",
+    body_text_color="#17243A",
+    body_text_color_dark="#17243A",
+    body_text_color_subdued="#52647A",
+    body_text_color_subdued_dark="#52647A",
+    block_label_background_fill="transparent",
+    block_label_background_fill_dark="transparent",
+    block_label_text_color="#17243A",
+    block_label_text_color_dark="#17243A",
+    block_title_text_color="#17243A",
+    block_title_text_color_dark="#17243A",
+    input_background_fill="#FFFFFF",
+    input_background_fill_dark="#FFFFFF",
+    input_border_color="#D1D9E2",
+    input_border_color_dark="#D1D9E2",
+    checkbox_label_background_fill="#FFFFFF",
+    checkbox_label_background_fill_dark="#FFFFFF",
+    checkbox_label_text_color="#17243A",
+    checkbox_label_text_color_dark="#17243A",
+    accordion_text_color="#17243A",
+    accordion_text_color_dark="#17243A",
+)
+
 # Create Gradio Interface
-with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=gr.themes.Soft(primary_hue="orange", neutral_hue="slate"), css=custom_css) as demo:
+with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=theme, css=custom_css, js=js_light_enforcer) as demo:
     # -- HEADER & CONFIGURED ARCHITECTURE BAR (Clean card, no dark strip) --
     gr.HTML("""
     <div class="studio-hero">
@@ -663,10 +946,10 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=gr.themes.Soft(prim
             simple_explain_box = gr.Markdown(visible=False, elem_classes="simple-explain-card")
 
             # Section 3 & 4: Supporting Evidence, Citations & Provenance
-            citations_box = gr.Markdown(label="Supporting Evidence, Citations & Provenance", elem_classes="citations-card")
+            citations_box = gr.HTML(value="", elem_classes="citations-container")
 
-            # Section 6: Spoken Neural Voice Output
-            audio_box = gr.Audio(label="Spoken Neural Voice Explanation (Indian English)", type="filepath", elem_classes="audio-card")
+            # Section 6: Spoken Neural Voice Output (Initially hidden until generated)
+            audio_box = gr.Audio(label="Spoken Neural Voice Explanation (Indian English)", type="filepath", elem_classes="audio-card", visible=False)
 
     # Wire Submit Action
     submit_btn.click(
