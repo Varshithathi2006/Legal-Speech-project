@@ -179,16 +179,16 @@ custom_css = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-    --bg-base: #090d16;
-    --bg-surface: #0e1628;
-    --bg-elevated: #131e36;
-    --border-subtle: rgba(148, 163, 184, 0.12);
-    --border-focus: rgba(59, 130, 246, 0.45);
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
+    --bg-base: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f8fafc;
+    --border-subtle: #e2e8f0;
+    --border-focus: rgba(234, 88, 12, 0.45);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
     --text-muted: #64748b;
-    --accent-blue: #2563eb;
-    --accent-blue-hover: #1d4ed8;
+    --accent-orange: #ea580c;
+    --accent-orange-hover: #c2410c;
     --accent-teal: #0d9488;
     --accent-amber: #d97706;
 }
@@ -209,12 +209,12 @@ body, .gradio-container {
    Header and System Specification Bar
    ========================================================================== */
 .studio-hero {
-    background: linear-gradient(135deg, rgba(14, 22, 40, 0.95) 0%, rgba(10, 16, 30, 0.98) 100%) !important;
+    background: #ffffff !important;
     border: 1px solid var(--border-subtle) !important;
     border-radius: 14px !important;
     padding: 22px 26px !important;
     margin-bottom: 20px !important;
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5) !important;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06) !important;
 }
 
 .hero-header-row {
@@ -235,14 +235,14 @@ body, .gradio-container {
 .brand-icon-svg {
     width: 38px;
     height: 38px;
-    background: rgba(37, 99, 235, 0.12);
-    border: 1px solid rgba(37, 99, 235, 0.3);
+    background: rgba(234, 88, 12, 0.1);
+    border: 1px solid rgba(234, 88, 12, 0.25);
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: #60a5fa;
+    color: var(--accent-orange);
 }
 
 .brand-title-wrap {
@@ -270,9 +270,9 @@ body, .gradio-container {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(13, 148, 136, 0.12);
-    border: 1px solid rgba(13, 148, 136, 0.35);
-    color: #2dd4bf;
+    background: rgba(13, 148, 136, 0.08);
+    border: 1px solid rgba(13, 148, 136, 0.25);
+    color: #0f766e;
     font-size: 0.74rem;
     font-weight: 600;
     padding: 4px 10px;
@@ -285,7 +285,7 @@ body, .gradio-container {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #14b8a6;
+    background: #0d9488;
 }
 
 /* System Capabilities Grid (clearly labeled as configured specs) */
@@ -298,8 +298,8 @@ body, .gradio-container {
 }
 
 .capability-item {
-    background: rgba(19, 30, 54, 0.5);
-    border: 1px solid rgba(148, 163, 184, 0.08);
+    background: #f8fafc;
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     padding: 8px 12px;
     display: flex;
@@ -310,7 +310,7 @@ body, .gradio-container {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.86rem;
     font-weight: 600;
-    color: #93c5fd;
+    color: var(--accent-orange);
 }
 
 .capability-lbl {
@@ -327,7 +327,7 @@ body, .gradio-container {
     border: 1px solid var(--border-subtle) !important;
     border-radius: 14px !important;
     padding: 22px !important;
-    box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06) !important;
 }
 
 .panel-header {
@@ -343,7 +343,7 @@ body, .gradio-container {
     font-family: 'Outfit', sans-serif;
     font-size: 1.05rem;
     font-weight: 600;
-    color: #e2e8f0;
+    color: #0f172a;
     letter-spacing: 0.01em;
 }
 
@@ -352,9 +352,9 @@ body, .gradio-container {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #34d399;
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    color: #0d9488;
+    background: rgba(13, 148, 136, 0.08);
+    border: 1px solid rgba(13, 148, 136, 0.25);
     padding: 2px 8px;
     border-radius: 6px;
 }
@@ -364,7 +364,7 @@ body, .gradio-container {
    ========================================================================== */
 .gradio-container textarea, .gradio-container input[type="text"] {
     background-color: var(--bg-base) !important;
-    border: 1px solid var(--border-subtle) !important;
+    border: 1px solid #cbd5e1 !important;
     border-radius: 10px !important;
     color: var(--text-primary) !important;
     font-family: 'Inter', sans-serif !important;
@@ -374,8 +374,8 @@ body, .gradio-container {
 }
 
 .gradio-container textarea:focus, .gradio-container input[type="text"]:focus {
-    border-color: var(--accent-blue) !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+    border-color: var(--accent-orange) !important;
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.18) !important;
 }
 
 .gradio-container label span {
@@ -393,18 +393,18 @@ body, .gradio-container {
     font-size: 0.98rem !important;
     font-weight: 600 !important;
     letter-spacing: 0.01em !important;
-    background: var(--accent-blue) !important;
+    background: var(--accent-orange) !important;
     color: #ffffff !important;
     border: none !important;
     border-radius: 10px !important;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.28) !important;
     transition: background-color 0.15s ease, transform 0.1s ease !important;
     cursor: pointer !important;
     margin-top: 12px !important;
 }
 
 .primary-action-btn:hover {
-    background: var(--accent-blue-hover) !important;
+    background: var(--accent-orange-hover) !important;
     transform: translateY(-1px) !important;
 }
 
@@ -427,9 +427,9 @@ body, .gradio-container {
 }
 
 .chip-btn {
-    background: rgba(19, 30, 54, 0.6) !important;
+    background: #f8fafc !important;
     border: 1px solid var(--border-subtle) !important;
-    color: #cbd5e1 !important;
+    color: #334155 !important;
     font-size: 0.8rem !important;
     font-weight: 500 !important;
     padding: 6px 10px !important;
@@ -438,15 +438,15 @@ body, .gradio-container {
 }
 
 .chip-btn:hover {
-    background: rgba(37, 99, 235, 0.15) !important;
-    border-color: rgba(59, 130, 246, 0.4) !important;
-    color: #ffffff !important;
+    background: rgba(234, 88, 12, 0.08) !important;
+    border-color: rgba(234, 88, 12, 0.4) !important;
+    color: var(--accent-orange) !important;
 }
 
 /* Dynamic Domain Router Card */
 .detected-badge-card {
-    background: rgba(14, 22, 40, 0.7);
-    border: 1px solid var(--border-subtle);
+    background: #fff7ed;
+    border: 1px solid rgba(234, 88, 12, 0.22);
     border-radius: 10px;
     padding: 12px 14px;
     margin: 12px 0;
@@ -469,7 +469,7 @@ body, .gradio-container {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #3b82f6;
+    background: var(--accent-orange);
 }
 
 .badge-pill-title {
@@ -481,9 +481,9 @@ body, .gradio-container {
 }
 
 .badge-domain-pill {
-    background: rgba(37, 99, 235, 0.14);
-    border: 1px solid rgba(37, 99, 235, 0.3);
-    color: #93c5fd;
+    background: rgba(234, 88, 12, 0.1);
+    border: 1px solid rgba(234, 88, 12, 0.25);
+    color: var(--accent-orange);
     font-size: 0.75rem;
     font-weight: 600;
     padding: 2px 8px;
@@ -500,7 +500,7 @@ body, .gradio-container {
 }
 
 .badge-arrow {
-    color: #60a5fa;
+    color: var(--accent-orange);
     font-weight: 700;
 }
 
@@ -510,16 +510,17 @@ body, .gradio-container {
 
 .badge-law-row {
     font-size: 0.8rem;
-    color: var(--text-secondary);
-    background: rgba(9, 13, 22, 0.5);
-    padding: 5px 8px;
+    color: #334155;
+    background: #ffffff;
+    padding: 6px 10px;
     border-radius: 6px;
-    border-left: 2px solid var(--accent-blue);
+    border: 1px solid #fed7aa;
+    border-left: 3px solid var(--accent-orange);
 }
 
 /* Applicable Law Banner Card in Right Column */
 .law-context-card {
-    background: rgba(14, 22, 40, 0.6);
+    background: #f8fafc;
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
     padding: 8px 12px;
@@ -545,7 +546,7 @@ body, .gradio-container {
 .context-val {
     font-size: 0.82rem;
     font-weight: 600;
-    color: #e2e8f0;
+    color: #0f172a;
 }
 
 .law-context-sep {
@@ -568,42 +569,44 @@ body, .gradio-container {
     min-height: 40px !important;
     font-size: 0.9rem !important;
     font-weight: 600 !important;
-    background: rgba(217, 119, 6, 0.1) !important;
-    color: #fbbf24 !important;
-    border: 1px solid rgba(217, 119, 6, 0.3) !important;
+    background: rgba(234, 88, 12, 0.08) !important;
+    color: #c2410c !important;
+    border: 1px solid rgba(234, 88, 12, 0.25) !important;
     border-radius: 8px !important;
     transition: all 0.15s ease !important;
 }
 
 .explain-action-btn:enabled:hover {
-    background: rgba(217, 119, 6, 0.18) !important;
-    border-color: #d97706 !important;
+    background: rgba(234, 88, 12, 0.16) !important;
+    border-color: var(--accent-orange) !important;
 }
 
 .simple-explain-card {
-    background: rgba(217, 119, 6, 0.05) !important;
-    border: 1px solid rgba(217, 119, 6, 0.2) !important;
-    border-left: 3px solid #d97706 !important;
+    background: #fffbf5 !important;
+    border: 1px solid rgba(234, 88, 12, 0.2) !important;
+    border-left: 3px solid var(--accent-orange) !important;
     border-radius: 8px !important;
     padding: 14px 18px !important;
     margin-bottom: 14px !important;
     font-size: 0.92rem !important;
     line-height: 1.55 !important;
+    color: #0f172a !important;
 }
 
 .citations-card {
-    background: rgba(9, 13, 22, 0.6) !important;
-    border: 1px solid rgba(148, 163, 184, 0.1) !important;
-    border-left: 3px solid #3b82f6 !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-left: 3px solid var(--accent-orange) !important;
     border-radius: 8px !important;
     padding: 12px 16px !important;
     margin-top: 10px !important;
     margin-bottom: 12px !important;
     font-size: 0.88rem !important;
+    color: #334155 !important;
 }
 
 .audio-card {
-    background: rgba(9, 13, 22, 0.5) !important;
+    background: #f8fafc !important;
     border: 1px solid var(--border-subtle) !important;
     border-radius: 10px !important;
     padding: 10px 12px !important;
@@ -620,7 +623,7 @@ body, .gradio-container {
 """
 
 # Create Gradio Interface
-with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate"), css=custom_css) as demo:
+with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=gr.themes.Soft(primary_hue="orange", neutral_hue="slate"), css=custom_css) as demo:
     # -- HEADER & CONFIGURED ARCHITECTURE BAR --
     with gr.Group(elem_classes="studio-hero"):
         gr.HTML("""

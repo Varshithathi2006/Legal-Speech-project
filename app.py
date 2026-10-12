@@ -19,7 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Obsidian Legal-Tech CSS
+# Custom Legal-Tech White Canvas & Orange CSS
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -30,72 +30,74 @@ html, body, [class*="css"] {
 
 /* Base Background */
 .stApp {
-    background-color: #090d16;
-    color: #f8fafc;
+    background-color: #ffffff;
+    color: #0f172a;
 }
 
 /* Sidebar Styling */
 section[data-testid="stSidebar"] {
-    background-color: #0e1628 !important;
-    border-right: 1px solid rgba(148, 163, 184, 0.12) !important;
+    background-color: #f8fafc !important;
+    border-right: 1px solid #e2e8f0 !important;
 }
 
 /* Metric Cards */
 div[data-testid="stMetric"] {
-    background: rgba(19, 30, 54, 0.5);
-    border: 1px solid rgba(148, 163, 184, 0.1);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 10px 14px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 div[data-testid="stMetricValue"] {
     font-family: 'JetBrains Mono', monospace;
     font-size: 1.25rem;
     font-weight: 600;
-    color: #93c5fd;
+    color: #ea580c;
 }
 
 div[data-testid="stMetricLabel"] {
     font-size: 0.76rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #94a3b8;
+    color: #64748b;
 }
 
 /* Primary Button Styling */
 button[kind="primary"] {
-    background-color: #2563eb !important;
+    background-color: #ea580c !important;
     color: #ffffff !important;
     border: none !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
     letter-spacing: 0.01em !important;
+    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.25) !important;
     transition: all 0.15s ease !important;
 }
 
 button[kind="primary"]:hover {
-    background-color: #1d4ed8 !important;
+    background-color: #c2410c !important;
 }
 
 /* Input Fields */
 input, textarea, select {
-    background-color: #090d16 !important;
-    color: #f8fafc !important;
-    border: 1px solid rgba(148, 163, 184, 0.15) !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
     border-radius: 8px !important;
 }
 
 /* Headers */
 h1, h2, h3 {
     font-family: 'Outfit', sans-serif;
-    color: #f8fafc !important;
+    color: #0f172a !important;
     letter-spacing: -0.01em;
 }
 
 /* Info & Success Alerts */
 div[data-testid="stAlert"] {
     border-radius: 8px !important;
-    border: 1px solid rgba(148, 163, 184, 0.15) !important;
+    border: 1px solid #e2e8f0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
