@@ -154,6 +154,7 @@ def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode,
         law_card_html = format_applicable_law_card(domain, subdomain)
         clean_cites_html = clean_citation_text(cites)
         
+        print(f"[GRADIO QUERY] aud_path={aud_path}, exists={os.path.exists(aud_path) if aud_path else False}")
         return ans, law_card_html, clean_cites_html, aud_path, gr.update(interactive=is_valid), gr.update(value="", visible=False)
     except Exception as e:
         import traceback
