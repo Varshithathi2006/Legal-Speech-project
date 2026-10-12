@@ -83,29 +83,31 @@
             <!-- Left Column: Legal Query Workspace -->
             <div class="panel-card panel-controls">
                 <div class="panel-header">
-                    <i data-lucide="sliders"></i>
-                    <h3>Legal Query Workspace</h3>
+                    <i data-lucide="help-circle"></i>
+                    <div>
+                        <h3>Ask a Legal Question</h3>
+                        <p class="panel-subtitle">Enter a statutory question or describe the legal issue you want to understand.</p>
+                    </div>
                 </div>
 
                 <!-- Natural Language Query Textarea -->
                 <div class="form-group query-input-group">
-                    <label for="question-input">Legal Question / Statutory Issue</label>
-                    <textarea id="question-input" rows="4" placeholder="State your legal inquiry (e.g., What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?)"></textarea>
+                    <textarea id="question-input" rows="4" placeholder="Example: Under Section 34 of the Arbitration and Conciliation Act, 1996, what are the grounds for setting aside an arbitral award?"></textarea>
                     <button id="run-btn" class="primary-action-btn">
                         <span>Analyze Legal Query</span>
                         <i data-lucide="arrow-right"></i>
                     </button>
                 </div>
 
-                <!-- Suggested Landmark Inquiries -->
+                <!-- Suggested Legal Queries -->
                 <div class="presets-container">
-                    <span class="preset-label"><i data-lucide="bookmark"></i> Suggested Landmark Inquiries:</span>
+                    <span class="preset-label"><i data-lucide="bookmark"></i> Suggested Legal Queries</span>
                     <div class="preset-chips">
-                        <button class="chip" data-domain="Constitutional & Administrative Law" data-subdomain="Election & Representation Law" data-query="What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?">Sec 9A RPA 1951</button>
-                        <button class="chip" data-domain="Constitutional & Administrative Law" data-subdomain="Fundamental Rights" data-query="How is the right to life and personal liberty protected under Article 21 of the Constitution of India in Supreme Court jurisprudence?">Art 21 Constitution</button>
-                        <button class="chip" data-domain="Criminal Law" data-subdomain="Indian Evidence Act" data-query="What are the mandatory certificate requirements for electronic records admissibility under Section 65B of the Indian Evidence Act, 1872?">Sec 65B Evidence Act</button>
-                        <button class="chip" data-domain="Criminal Law" data-subdomain="Bail Procedures" data-query="What statutory conditions and judicial principles govern the grant of bail under Section 437 of the Code of Criminal Procedure, 1973 for non-bailable offences?">Sec 437 CrPC</button>
-                        <button class="chip" data-domain="Corporate & Business Law" data-subdomain="Contract Law" data-query="On what statutory grounds can an arbitral award be set aside under Section 34 of the Arbitration and Conciliation Act, 1996?">Sec 34 Arbitration Act</button>
+                        <button class="chip" data-domain="Constitutional & Administrative Law" data-subdomain="Election & Representation Law" data-query="What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?">Section 9A — Representation of the People Act</button>
+                        <button class="chip" data-domain="Constitutional & Administrative Law" data-subdomain="Fundamental Rights" data-query="How is the right to life and personal liberty protected under Article 21 of the Constitution of India in Supreme Court jurisprudence?">Article 21 — Right to Privacy</button>
+                        <button class="chip" data-domain="Criminal Law" data-subdomain="Indian Evidence Act" data-query="What are the mandatory certificate requirements for electronic records admissibility under Section 65B of the Indian Evidence Act, 1872?">Section 65B — Electronic Evidence</button>
+                        <button class="chip" data-domain="Criminal Law" data-subdomain="Bail Procedures" data-query="What statutory conditions and judicial principles govern the grant of bail under Section 437 of the Code of Criminal Procedure, 1973 for non-bailable offences?">Section 437 — Bail under the CrPC</button>
+                        <button class="chip" data-domain="Corporate & Business Law" data-subdomain="Contract Law" data-query="On what statutory grounds can an arbitral award be set aside under Section 34 of the Arbitration and Conciliation Act, 1996?">Section 34 — Setting Aside Arbitral Awards</button>
                     </div>
                 </div>
 

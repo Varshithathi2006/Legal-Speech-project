@@ -4,33 +4,34 @@
    ========================================================================== */
 
 :root {
-    --bg-primary: #ffffff;
+    --bg-primary: #f8fafc;
     --bg-surface: #ffffff;
     --bg-elevated: #f8fafc;
-    --border-subtle: #e2e8f0;
-    --border-focus: rgba(234, 88, 12, 0.45);
+    --border-subtle: #d1d9e2;
+    --border-focus: rgba(198, 93, 33, 0.45);
     
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #64748b;
-    --text-accent: #ea580c;
+    --text-primary: #17243a;
+    --text-secondary: #52647a;
+    --text-muted: #718294;
+    --text-accent: #c65d21;
 
-    --accent-orange: #ea580c;
-    --accent-orange-hover: #c2410c;
+    --accent-orange: #c65d21;
+    --accent-orange-hover: #a84a15;
+    --accent-blue: #2563eb;
     --accent-teal: #0d9488;
     --accent-amber: #d97706;
 
-    --font-heading: 'Outfit', sans-serif;
+    --font-heading: 'Inter', sans-serif;
     --font-body: 'Inter', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
 
     --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 14px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
     --radius-full: 9999px;
 
-    --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
-    --shadow-btn: 0 4px 14px rgba(234, 88, 12, 0.28);
+    --shadow-card: 0 1px 3px rgba(23, 36, 58, 0.04);
+    --shadow-btn: 0 2px 8px rgba(198, 93, 33, 0.22);
 }
 
 * {
@@ -335,39 +336,46 @@ textarea:focus {
 
 .preset-chips {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 6px;
 }
 
 .chip {
     background: #f8fafc;
     border: 1px solid var(--border-subtle);
-    color: #334155;
-    font-size: 0.78rem;
+    color: var(--text-primary);
+    font-size: 0.84rem;
     font-weight: 500;
-    padding: 6px 10px;
+    padding: 8px 12px;
     border-radius: var(--radius-sm);
     cursor: pointer;
+    text-align: left;
     transition: all 0.15s ease;
+    line-height: 1.4;
 }
 
 .chip:hover {
-    background: rgba(234, 88, 12, 0.08);
-    border-color: rgba(234, 88, 12, 0.4);
-    color: var(--accent-orange);
+    background: #eef2f6;
+    border-color: #b8c5d3;
+    color: var(--text-primary);
+}
+
+.chip:focus {
+    border-color: var(--accent-orange);
+    outline: none;
 }
 
 /* Applicable Law Banner */
 .law-banner {
-    background: #fff7ed;
-    border: 1px solid rgba(234, 88, 12, 0.2);
-    border-left: 3px solid var(--accent-orange);
+    background: #f8fafc;
+    border: 1px solid var(--border-subtle);
+    border-left: 4px solid var(--accent-blue);
     border-radius: var(--radius-sm);
-    padding: 10px 12px;
+    padding: 10px 14px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin: 12px 0;
+    gap: 12px;
+    margin: 14px 0;
 }
 
 .law-icon {

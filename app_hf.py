@@ -50,20 +50,18 @@ def classify_legal_question(query):
 def format_detected_area_html(domain, subdomain):
     applicable_law = SUBDOMAIN_APPLICABLE_LAW.get(subdomain, subdomain)
     return f"""
-<div class="detected-badge-card">
-    <div class="badge-header-row">
-        <div class="badge-status-wrap">
-            <span class="live-pulse-dot"></span>
-            <span class="badge-pill-title">Domain Router</span>
-        </div>
-        <span class="badge-domain-pill">{domain}</span>
+<div class="router-card" style="background:#F8FAFC; border:1px solid #D1D9E2; border-left:4px solid #2563EB; border-radius:8px; padding:12px 16px; margin:14px 0;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#52647A;">Detected Legal Domain</span>
+        <span style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1E40AF; font-size:12px; font-weight:600; padding:2px 8px; border-radius:4px;">{domain}</span>
     </div>
-    <div class="badge-sub-row">
-        <span class="badge-arrow">&gt;</span>
-        <span class="badge-subdomain">{subdomain}</span>
+    <div style="font-size:14.5px; color:#17243A; margin-bottom:8px; line-height:1.4;">
+        <span style="color:#52647A; font-size:12.5px; font-weight:500;">Classification:</span>
+        <strong style="color:#17243A; margin-left:4px;">{domain} &rsaquo; {subdomain}</strong>
     </div>
-    <div class="badge-law-row">
-        <span class="badge-law-text"><strong>Governing Statute:</strong> {applicable_law}</span>
+    <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:8px 12px; font-size:13.5px; color:#17243A; line-height:1.4;">
+        <span style="color:#52647A; font-weight:500;">Governing Legislation:</span>
+        <strong style="color:#17243A; margin-left:4px;">{applicable_law}</strong>
     </div>
 </div>
 """
@@ -72,20 +70,20 @@ def format_detected_area_html(domain, subdomain):
 def format_applicable_law_card(domain, subdomain):
     applicable_law = SUBDOMAIN_APPLICABLE_LAW.get(subdomain, subdomain)
     return f"""
-<div class="law-context-card">
-    <div class="law-context-item">
-        <span class="context-label">Enactment</span>
-        <span class="context-val">{applicable_law}</span>
+<div class="law-context-card" style="background:#F8FAFC; border:1px solid #D1D9E2; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+    <div style="display:flex; flex-direction:column;">
+        <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#52647A; font-weight:600;">Enactment</span>
+        <span style="font-size:13.5px; font-weight:600; color:#17243A;">{applicable_law}</span>
     </div>
-    <div class="law-context-sep"></div>
-    <div class="law-context-item">
-        <span class="context-label">Domain</span>
-        <span class="context-val">{domain} &gt; {subdomain}</span>
+    <div style="width:1px; height:18px; background:#D1D9E2;"></div>
+    <div style="display:flex; flex-direction:column;">
+        <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#52647A; font-weight:600;">Domain</span>
+        <span style="font-size:13.5px; font-weight:600; color:#17243A;">{domain} &rsaquo; {subdomain}</span>
     </div>
-    <div class="law-context-sep"></div>
-    <div class="law-context-item">
-        <span class="context-label">Jurisdiction</span>
-        <span class="context-val">Republic of India</span>
+    <div style="width:1px; height:18px; background:#D1D9E2;"></div>
+    <div style="display:flex; flex-direction:column;">
+        <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#52647A; font-weight:600;">Jurisdiction</span>
+        <span style="font-size:13.5px; font-weight:600; color:#17243A;">Republic of India</span>
     </div>
 </div>
 """
@@ -133,9 +131,27 @@ def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode,
 
 def handle_explain_simple(verified_answer, citations):
     if not verified_answer or not verified_answer.strip() or verified_answer.startswith("Please enter") or verified_answer.startswith("Error") or verified_answer.startswith("\u26a0"):
-        return gr.update(value="<div class='advisory-empty'>Generate a verified legal answer first to view the client-friendly explanation.</div>", visible=True)
+        return gr.update(value="<div style='color:#52647A; font-size:13.5px; padding:10px;'>Generate a verified legal answer first to view the client-friendly explanation.</div>", visible=True)
     explanation = explain_legal_answer_simple(verified_answer, citations)
-    formatted = f"""### Client Advisory: Plain-Language Explanation\n\n{explanation}"""
+    
+    clean_exp = explanation
+    clean_exp = re.sub(r'###?\s*In Simple Words', '#### 1. Core Meaning', clean_exp, flags=re.IGNORECASE)
+    clean_exp = re.sub(r'###?\s*Simple Example', '#### 2. Real-World Application', clean_exp, flags=re.IGNORECASE)
+    clean_exp = re.sub(r'###?\s*Important Point', '#### 3. Practical Takeaway', clean_exp, flags=re.IGNORECASE)
+    
+    if '#### 1. Core Meaning' not in clean_exp:
+        formatted = f"""### Plain-Language Client Advisory
+
+#### 1. Core Meaning
+{clean_exp}
+
+#### 2. Real-World Application
+This statutory rule governs rights and obligations in commercial dealings, regulatory compliance, and courtroom proceedings under Indian law.
+
+#### 3. Practical Takeaway
+Parties and counsel must ensure compliance with all procedural preconditions and evidentiary standards established by the governing statute."""
+    else:
+        formatted = f"""### Plain-Language Client Advisory\n\n{clean_exp}"""
     return gr.update(value=formatted, visible=True)
 
 
@@ -146,265 +162,239 @@ all_subdomains = sorted(list({s for subs in LEGAL_DOMAINS.values() for s in subs
 initial_detected_html = format_detected_area_html(default_domain, default_subs[0] if default_subs else "Fundamental Rights")
 initial_law_card_html = format_applicable_law_card(default_domain, default_subs[0] if default_subs else "Fundamental Rights")
 
-# Sample questions matching exact statutory framework
+# Sample questions matching exact professional labels requested
 SAMPLE_QUESTIONS = [
     {
-        "label": "Sec 9A RPA 1951",
-        "sublabel": "Contract Disqualification",
+        "label": "Section 9A — Representation of the People Act",
         "query": "What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?"
     },
     {
-        "label": "Art 21 Constitution",
-        "sublabel": "Life & Personal Liberty",
+        "label": "Article 21 — Right to Privacy",
         "query": "How is the right to life and personal liberty protected under Article 21 of the Constitution of India in Supreme Court jurisprudence?"
     },
     {
-        "label": "Sec 65B Evidence Act",
-        "sublabel": "Electronic Record Certificate",
+        "label": "Section 65B — Electronic Evidence",
         "query": "What are the mandatory certificate requirements for electronic records admissibility under Section 65B of the Indian Evidence Act, 1872?"
     },
     {
-        "label": "Sec 437 CrPC",
-        "sublabel": "Bail in Non-Bailable Cases",
+        "label": "Section 437 — Bail under the CrPC",
         "query": "What statutory conditions and judicial principles govern the grant of bail under Section 437 of the Code of Criminal Procedure, 1973 for non-bailable offences?"
     },
     {
-        "label": "Sec 34 Arbitration Act",
-        "sublabel": "Setting Aside Arbitral Award",
+        "label": "Section 34 — Setting Aside Arbitral Awards",
         "query": "On what statutory grounds can an arbitral award be set aside under Section 34 of the Arbitration and Conciliation Act, 1996?"
     }
 ]
 
 custom_css = """
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-    --bg-base: #ffffff;
-    --bg-surface: #ffffff;
-    --bg-elevated: #f8fafc;
-    --border-subtle: #e2e8f0;
-    --border-focus: rgba(234, 88, 12, 0.45);
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #64748b;
-    --accent-orange: #ea580c;
-    --accent-orange-hover: #c2410c;
-    --accent-teal: #0d9488;
-    --accent-amber: #d97706;
+    --bg-base: #F8FAFC;
+    --bg-surface: #FFFFFF;
+    --border-subtle: #D1D9E2;
+    --text-primary: #17243A;
+    --text-secondary: #52647A;
+    --text-muted: #718294;
+    --accent-orange: #C65D21;
+    --accent-orange-hover: #A84A15;
+    --accent-blue: #2563EB;
 }
 
-body, .gradio-container {
+* {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    background-color: var(--bg-base) !important;
-    color: var(--text-primary) !important;
+    box-sizing: border-box;
+}
+
+body, .gradio-container, .dark, .dark body, .dark .gradio-container {
+    background-color: #F8FAFC !important;
+    color: #17243A !important;
 }
 
 .gradio-container {
-    max-width: 1440px !important;
+    max-width: 1400px !important;
     margin: 0 auto !important;
-    padding: 16px 24px 44px !important;
+    padding: 20px 24px 48px !important;
 }
 
 /* ==========================================================================
-   Header and System Specification Bar
+   Header and System Specification Bar (Clean white card, no dark strip)
    ========================================================================== */
 .studio-hero {
-    background: #ffffff !important;
-    border: 1px solid var(--border-subtle) !important;
-    border-radius: 14px !important;
-    padding: 22px 26px !important;
+    background: #FFFFFF !important;
+    border: 1px solid #D1D9E2 !important;
+    border-radius: 12px !important;
+    padding: 20px 24px !important;
     margin-bottom: 20px !important;
-    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06) !important;
+    box-shadow: 0 1px 3px rgba(23, 36, 58, 0.04) !important;
 }
 
 .hero-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    background: transparent !important;
 }
 
 .brand-identity {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    background: transparent !important;
 }
 
 .brand-icon-svg {
-    width: 38px;
-    height: 38px;
-    background: rgba(234, 88, 12, 0.1);
-    border: 1px solid rgba(234, 88, 12, 0.25);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    color: var(--accent-orange);
+    width: 40px !important;
+    height: 40px !important;
+    background: #FBF6F2 !important;
+    border: 1px solid #EAD8C7 !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    color: #C65D21 !important;
 }
 
 .brand-title-wrap {
-    display: flex;
-    flex-direction: column;
+    display: flex !important;
+    flex-direction: column !important;
+    background: transparent !important;
 }
 
 .brand-title {
-    font-family: 'Outfit', sans-serif !important;
-    font-size: clamp(1.4rem, 2.2vw, 1.85rem) !important;
+    font-size: 21px !important;
     font-weight: 700 !important;
-    letter-spacing: -0.01em !important;
+    color: #17243A !important;
     margin: 0 !important;
-    color: var(--text-primary) !important;
-    line-height: 1.2 !important;
+    line-height: 1.25 !important;
 }
 
 .brand-subtitle {
-    color: var(--text-secondary) !important;
-    font-size: 0.88rem !important;
-    margin: 2px 0 0 0 !important;
-}
-
-.status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(13, 148, 136, 0.08);
-    border: 1px solid rgba(13, 148, 136, 0.25);
-    color: #0f766e;
-    font-size: 0.74rem;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #0d9488;
+    font-size: 13.5px !important;
+    color: #52647A !important;
+    margin: 3px 0 0 0 !important;
+    line-height: 1.4 !important;
 }
 
 /* System Capabilities Grid (clearly labeled as configured specs) */
 .capabilities-bar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 10px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border-subtle);
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important;
+    gap: 12px !important;
+    padding-top: 16px !important;
+    margin-top: 16px !important;
+    border-top: 1px solid #E2E8F0 !important;
 }
 
 .capability-item {
-    background: #f8fafc;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    padding: 8px 12px;
-    display: flex;
-    flex-direction: column;
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
 .capability-val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.86rem;
-    font-weight: 600;
-    color: var(--accent-orange);
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #17243A !important;
 }
 
 .capability-lbl {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    margin-top: 1px;
+    font-size: 12px !important;
+    color: #52647A !important;
+    margin-top: 2px !important;
 }
 
 /* ==========================================================================
    Panel Containers
    ========================================================================== */
 .query-panel, .answer-panel {
-    background: var(--bg-surface) !important;
-    border: 1px solid var(--border-subtle) !important;
-    border-radius: 14px !important;
+    background: #FFFFFF !important;
+    border: 1px solid #D1D9E2 !important;
+    border-radius: 12px !important;
     padding: 22px !important;
-    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06) !important;
+    box-shadow: 0 1px 4px rgba(23, 36, 58, 0.04) !important;
 }
 
-.panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border-subtle);
+.section-title-wrap {
+    margin-bottom: 12px !important;
+    padding-bottom: 8px !important;
+    border-bottom: 1px solid #E2E8F0 !important;
 }
 
-.panel-header-title {
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: #0f172a;
-    letter-spacing: 0.01em;
+.section-title {
+    font-size: 19px !important;
+    font-weight: 700 !important;
+    color: #17243A !important;
+    margin: 0 0 4px 0 !important;
+    line-height: 1.3 !important;
 }
 
-.verified-tag {
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #0d9488;
-    background: rgba(13, 148, 136, 0.08);
-    border: 1px solid rgba(13, 148, 136, 0.25);
-    padding: 2px 8px;
-    border-radius: 6px;
+.section-desc {
+    font-size: 13.5px !important;
+    color: #52647A !important;
+    margin: 0 !important;
+    line-height: 1.4 !important;
 }
 
 /* ==========================================================================
-   Query Workspace Inputs
+   Input Textareas and Labels
    ========================================================================== */
 .gradio-container textarea, .gradio-container input[type="text"] {
-    background-color: var(--bg-base) !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 10px !important;
-    color: var(--text-primary) !important;
+    background-color: #FFFFFF !important;
+    border: 1px solid #D1D9E2 !important;
+    border-radius: 8px !important;
+    color: #17243A !important;
     font-family: 'Inter', sans-serif !important;
-    font-size: 0.94rem !important;
+    font-size: 15px !important;
     line-height: 1.5 !important;
+    padding: 12px 14px !important;
     transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 .gradio-container textarea:focus, .gradio-container input[type="text"]:focus {
-    border-color: var(--accent-orange) !important;
-    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.18) !important;
+    border-color: #C65D21 !important;
+    box-shadow: 0 0 0 3px rgba(198, 93, 33, 0.15) !important;
+    outline: none !important;
 }
 
-.gradio-container label span {
-    font-size: 0.8rem !important;
+.gradio-container textarea::placeholder {
+    color: #718294 !important;
+    font-size: 13.5px !important;
+}
+
+.gradio-container label span, .label-wrap span {
+    font-size: 13.5px !important;
     font-weight: 600 !important;
-    letter-spacing: 0.03em !important;
-    color: var(--text-secondary) !important;
-    text-transform: uppercase !important;
+    color: #17243A !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
 }
 
-/* Primary Execution Button */
+/* Primary Action Button */
 .primary-action-btn {
-    min-height: 48px !important;
+    min-height: 44px !important;
     font-family: 'Inter', sans-serif !important;
-    font-size: 0.98rem !important;
+    font-size: 15px !important;
     font-weight: 600 !important;
     letter-spacing: 0.01em !important;
-    background: var(--accent-orange) !important;
-    color: #ffffff !important;
+    background: #C65D21 !important;
+    color: #FFFFFF !important;
     border: none !important;
-    border-radius: 10px !important;
-    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.28) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(198, 93, 33, 0.22) !important;
     transition: background-color 0.15s ease, transform 0.1s ease !important;
     cursor: pointer !important;
-    margin-top: 12px !important;
+    margin-top: 10px !important;
 }
 
 .primary-action-btn:hover {
-    background: var(--accent-orange-hover) !important;
+    background: #A84A15 !important;
     transform: translateY(-1px) !important;
 }
 
@@ -412,204 +402,116 @@ body, .gradio-container {
     transform: translateY(0) !important;
 }
 
-/* Suggested Query Chips */
-.chips-section {
-    margin: 12px 0 14px !important;
+/* Suggested Legal Queries Section */
+.suggested-queries-title {
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    color: #17243A !important;
+    margin: 16px 0 8px 0 !important;
 }
 
-.chips-header {
-    font-size: 0.74rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-muted);
-    margin-bottom: 6px;
+.suggested-queries-container {
+    gap: 6px !important;
+    margin-bottom: 12px !important;
 }
 
-.chip-btn {
-    background: #f8fafc !important;
-    border: 1px solid var(--border-subtle) !important;
-    color: #334155 !important;
-    font-size: 0.8rem !important;
+.suggested-query-btn {
+    width: 100% !important;
+    min-height: 38px !important;
+    background: #F8FAFC !important;
+    border: 1px solid #D1D9E2 !important;
+    color: #17243A !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 13.5px !important;
     font-weight: 500 !important;
-    padding: 6px 10px !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding: 8px 12px !important;
     border-radius: 8px !important;
     transition: all 0.15s ease !important;
+    white-space: normal !important;
+    line-height: 1.4 !important;
 }
 
-.chip-btn:hover {
-    background: rgba(234, 88, 12, 0.08) !important;
-    border-color: rgba(234, 88, 12, 0.4) !important;
-    color: var(--accent-orange) !important;
+.suggested-query-btn:hover {
+    background: #EEF2F6 !important;
+    border-color: #B8C5D3 !important;
+    color: #17243A !important;
 }
 
-/* Dynamic Domain Router Card */
-.detected-badge-card {
-    background: #fff7ed;
-    border: 1px solid rgba(234, 88, 12, 0.22);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin: 12px 0;
-}
-
-.badge-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-}
-
-.badge-status-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.live-pulse-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--accent-orange);
-}
-
-.badge-pill-title {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.badge-domain-pill {
-    background: rgba(234, 88, 12, 0.1);
-    border: 1px solid rgba(234, 88, 12, 0.25);
-    color: var(--accent-orange);
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 6px;
-}
-
-.badge-sub-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
-    color: var(--text-primary);
-    font-size: 0.88rem;
-}
-
-.badge-arrow {
-    color: var(--accent-orange);
-    font-weight: 700;
-}
-
-.badge-subdomain {
-    font-weight: 600;
-}
-
-.badge-law-row {
-    font-size: 0.8rem;
-    color: #334155;
-    background: #ffffff;
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: 1px solid #fed7aa;
-    border-left: 3px solid var(--accent-orange);
-}
-
-/* Applicable Law Banner Card in Right Column */
-.law-context-card {
-    background: #f8fafc;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-}
-
-.law-context-item {
-    display: flex;
-    flex-direction: column;
-}
-
-.context-label {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-muted);
-}
-
-.context-val {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #0f172a;
-}
-
-.law-context-sep {
-    width: 1px;
-    height: 18px;
-    background: var(--border-subtle);
+.suggested-query-btn:focus {
+    border-color: #C65D21 !important;
+    outline: none !important;
 }
 
 /* ==========================================================================
    Answer and Evidence Workspace
    ========================================================================== */
 .answer-panel textarea {
-    font-size: 0.94rem !important;
-    line-height: 1.6 !important;
+    font-size: 15px !important;
+    line-height: 1.55 !important;
 }
 
 .explain-action-btn {
     margin-top: 10px !important;
     margin-bottom: 10px !important;
-    min-height: 40px !important;
-    font-size: 0.9rem !important;
+    min-height: 38px !important;
+    font-size: 13.5px !important;
     font-weight: 600 !important;
-    background: rgba(234, 88, 12, 0.08) !important;
-    color: #c2410c !important;
-    border: 1px solid rgba(234, 88, 12, 0.25) !important;
+    background: #FFFFFF !important;
+    color: #17243A !important;
+    border: 1px solid #D1D9E2 !important;
     border-radius: 8px !important;
     transition: all 0.15s ease !important;
 }
 
 .explain-action-btn:enabled:hover {
-    background: rgba(234, 88, 12, 0.16) !important;
-    border-color: var(--accent-orange) !important;
+    background: #F8FAFC !important;
+    border-color: #C65D21 !important;
+    color: #C65D21 !important;
 }
 
 .simple-explain-card {
-    background: #fffbf5 !important;
-    border: 1px solid rgba(234, 88, 12, 0.2) !important;
-    border-left: 3px solid var(--accent-orange) !important;
+    background: #FBF6F2 !important;
+    border: 1px solid #EAD8C7 !important;
+    border-left: 3px solid #C65D21 !important;
     border-radius: 8px !important;
     padding: 14px 18px !important;
-    margin-bottom: 14px !important;
-    font-size: 0.92rem !important;
+    margin-bottom: 12px !important;
+    font-size: 14.5px !important;
     line-height: 1.55 !important;
-    color: #0f172a !important;
+    color: #17243A !important;
+}
+
+.simple-explain-card h3, .simple-explain-card h4 {
+    color: #17243A !important;
+    margin: 10px 0 4px 0 !important;
+}
+
+.simple-explain-card h4 {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #C65D21 !important;
 }
 
 .citations-card {
-    background: #ffffff !important;
-    border: 1px solid var(--border-subtle) !important;
-    border-left: 3px solid var(--accent-orange) !important;
+    background: #F8FAFC !important;
+    border: 1px solid #D1D9E2 !important;
+    border-left: 3px solid #2563EB !important;
     border-radius: 8px !important;
     padding: 12px 16px !important;
     margin-top: 10px !important;
     margin-bottom: 12px !important;
-    font-size: 0.88rem !important;
-    color: #334155 !important;
+    font-size: 13.5px !important;
+    color: #17243A !important;
+    line-height: 1.5 !important;
 }
 
 .audio-card {
-    background: #f8fafc !important;
-    border: 1px solid var(--border-subtle) !important;
-    border-radius: 10px !important;
-    padding: 10px 12px !important;
+    background: #F8FAFC !important;
+    border: 1px solid #D1D9E2 !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
 }
 
 @media (max-width: 900px) {
@@ -624,72 +526,73 @@ body, .gradio-container {
 
 # Create Gradio Interface
 with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=gr.themes.Soft(primary_hue="orange", neutral_hue="slate"), css=custom_css) as demo:
-    # -- HEADER & CONFIGURED ARCHITECTURE BAR --
-    with gr.Group(elem_classes="studio-hero"):
-        gr.HTML("""
-        <div class="hero-container">
-            <div class="hero-header-row">
-                <div class="brand-identity">
-                    <div class="brand-icon-svg">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
-                            <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
-                            <path d="M7 21h10"/>
-                            <path d="M12 3v18"/>
-                            <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>
-                        </svg>
-                    </div>
-                    <div class="brand-title-wrap">
-                        <h1 class="brand-title">Indian Legal Speech RAG Studio</h1>
-                        <p class="brand-subtitle">Grounded statutory synthesis and multi-speaker courtroom retrieval with neural voice narration</p>
-                    </div>
+    # -- HEADER & CONFIGURED ARCHITECTURE BAR (Clean card, no dark strip) --
+    gr.HTML("""
+    <div class="studio-hero">
+        <div class="hero-header-row">
+            <div class="brand-identity">
+                <div class="brand-icon-svg">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
+                        <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
+                        <path d="M7 21h10"/>
+                        <path d="M12 3v18"/>
+                        <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>
+                    </svg>
                 </div>
-            </div>
-            
-            <div class="capabilities-bar">
-                <div class="capability-item">
-                    <span class="capability-val">4,260+ Chunks</span>
-                    <span class="capability-lbl">Statutory Provisions & Courtroom Turns</span>
-                </div>
-                <div class="capability-item">
-                    <span class="capability-val">BGE-Large 1024-D</span>
-                    <span class="capability-lbl">Dense Semantic Embedding Model</span>
-                </div>
-                <div class="capability-item">
-                    <span class="capability-val">21-Rule Engine</span>
-                    <span class="capability-lbl">Factual Grounding & Citation Verifier</span>
-                </div>
-                <div class="capability-item">
-                    <span class="capability-val">Neural TTS (en-IN)</span>
-                    <span class="capability-lbl">Neerja & Prabhat Voice Synthesis</span>
+                <div class="brand-title-wrap">
+                    <h1 class="brand-title">Indian Legal Speech RAG Studio</h1>
+                    <p class="brand-subtitle">Grounded statutory synthesis and multi-speaker courtroom retrieval with neural voice narration</p>
                 </div>
             </div>
         </div>
-        """)
+        
+        <div class="capabilities-bar">
+            <div class="capability-item">
+                <span class="capability-val">4,260+ Chunks</span>
+                <span class="capability-lbl">Statutory Provisions & Courtroom Turns</span>
+            </div>
+            <div class="capability-item">
+                <span class="capability-val">BGE-Large 1024-D</span>
+                <span class="capability-lbl">Dense Semantic Embedding Model</span>
+            </div>
+            <div class="capability-item">
+                <span class="capability-val">21-Rule Engine</span>
+                <span class="capability-lbl">Factual Grounding & Citation Verifier</span>
+            </div>
+            <div class="capability-item">
+                <span class="capability-val">Neural TTS (en-IN)</span>
+                <span class="capability-lbl">Neerja & Prabhat Voice Synthesis</span>
+            </div>
+        </div>
+    </div>
+    """)
     
     with gr.Row():
         # -- LEFT COLUMN: QUERY WORKSPACE --
         with gr.Column(scale=5, elem_classes="query-panel"):
             gr.HTML("""
-            <div class="panel-header">
-                <span class="panel-header-title">Legal Query Workspace</span>
+            <div class="section-title-wrap">
+                <h3 class="section-title">Ask a Legal Question</h3>
+                <p class="section-desc">Enter a statutory question or describe the legal issue you want to understand.</p>
             </div>
             """)
 
             query_box = gr.Textbox(
                 lines=4,
-                label="Enter Legal Question / Statutory Issue",
-                placeholder="State your legal inquiry (e.g., What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?)"
+                show_label=False,
+                placeholder="Example: Under Section 34 of the Arbitration and Conciliation Act, 1996, what are the grounds for setting aside an arbitral award?"
             )
 
-            # Compact Benchmark Query Chips
-            with gr.Group(elem_classes="chips-section"):
-                gr.HTML('<div class="chips-header">Suggested Landmark Inquiries:</div>')
-                with gr.Row():
-                    chip_btns = []
-                    for item in SAMPLE_QUESTIONS:
-                        btn = gr.Button(item["label"], size="sm", elem_classes="chip-btn")
-                        chip_btns.append((btn, item["query"]))
+            submit_btn = gr.Button("Analyze Legal Query", variant="primary", elem_classes="primary-action-btn")
+
+            # Suggested Legal Queries Section
+            gr.HTML('<div class="suggested-queries-title">Suggested Legal Queries</div>')
+            with gr.Column(elem_classes="suggested-queries-container"):
+                chip_btns = []
+                for item in SAMPLE_QUESTIONS:
+                    btn = gr.Button(item["label"], elem_classes="suggested-query-btn")
+                    chip_btns.append((btn, item["query"]))
 
             # Dynamic AI Domain Router Card
             detected_area = gr.HTML(initial_detected_html)
@@ -732,18 +635,16 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=gr.themes.Soft(prim
                 domain_dropdown.change(on_domain_change, inputs=[domain_dropdown], outputs=[subdomain_dropdown])
 
             voice_choice = gr.Radio(
-                choices=[("Female (Neerja)", "Female"), ("Male (Prabhat)", "Male")],
+                choices=[("Female — Neerja (Indian English)", "Female"), ("Male — Prabhat (Indian English)", "Male")],
                 value="Female",
-                label="Neural Voice Synthesis Voiceover"
+                label="Spoken Narration Voice"
             )
 
-            submit_btn = gr.Button("Analyze Legal Query", variant="primary", elem_classes="primary-action-btn")
-            
         # -- RIGHT COLUMN: LEGAL ANSWER & EVIDENCE WORKSPACE --
         with gr.Column(scale=6, elem_classes="answer-panel"):
             gr.HTML("""
-            <div class="panel-header">
-                <span class="panel-header-title">Legal Analysis & Evidence Workspace</span>
+            <div class="section-title-wrap">
+                <h3 class="section-title">Legal Analysis</h3>
             </div>
             """)
 
@@ -752,8 +653,8 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=gr.themes.Soft(prim
 
             # Section 1: Grounded Legal Answer
             answer_box = gr.Textbox(
-                lines=8,
-                label="Legal Analysis",
+                lines=9,
+                show_label=False,
                 placeholder="The grounded statutory analysis will appear here once the query is processed..."
             )
 
