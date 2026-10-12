@@ -20,7 +20,8 @@ from legal_rag_qa import (
     process_hierarchical_legal_query,
     explain_legal_answer_simple,
     LEGAL_DOMAINS,
-    SUBDOMAIN_APPLICABLE_LAW
+    SUBDOMAIN_APPLICABLE_LAW,
+    OUTPUT_AUDIO_DIR
 )
 
 def classify_legal_question(query):
@@ -966,6 +967,11 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=theme, css=custom_c
 
 # Launch the Gradio app directly with show_api=False to prevent JSON schema parse errors
 demo.queue()
-demo.launch(server_name="0.0.0.0", server_port=7860, show_api=False)
+demo.launch(
+    server_name="0.0.0.0",
+    server_port=7860,
+    show_api=False,
+    allowed_paths=[OUTPUT_AUDIO_DIR, os.path.abspath("output_audio"), os.path.abspath(".")]
+)
 
 

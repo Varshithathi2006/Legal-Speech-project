@@ -7,6 +7,7 @@ chromadb>=0.4.22
 sentence-transformers>=2.2.2
 sentencepiece
 edge-tts>=6.1.0
+gTTS>=2.5.0
 huggingface_hub>=0.23.0,<0.25.0
 google-generativeai
 openai

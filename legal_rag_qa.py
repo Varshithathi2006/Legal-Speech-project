@@ -1045,39 +1045,64 @@ def check_hierarchical_domain_alignment(query_text, selected_domain, selected_su
 def text_to_speech_with_gender(text, gender="Female", output_filename=None):
     """
     Converts plain prose text to audio file using edge-tts (Indian English voice)
-    with gender selection, or pyttsx3 offline fallback.
+    with gender selection, gTTS HTTP fallback, and pyttsx3 offline fallback.
     """
     if not output_filename:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_filename = f"answer_{ts}.mp3"
         
+    os.makedirs(OUTPUT_AUDIO_DIR, exist_ok=True)
     speech_text = clean_text_for_speech(text)
+    
+    # Trim to first 3 clean sentences (up to ~600 chars) for crisp synthesis without websocket timeout
+    sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', speech_text) if s.strip()]
+    spoken_summary = " ".join(sentences[:3]) if sentences else speech_text
+    if len(spoken_summary) > 600:
+        spoken_summary = spoken_summary[:597] + "..."
+    if not spoken_summary.strip():
+        spoken_summary = "The statutory legal question has been analyzed and grounded."
+
     output_path = os.path.join(OUTPUT_AUDIO_DIR, output_filename)
     tts_engine_used = ""
     voice = "en-IN-NeerjaNeural" if gender == "Female" else "en-IN-PrabhatNeural"
 
+    # Tier 1: Microsoft Edge Neural TTS (Indian English: Neerja / Prabhat)
     try:
         import edge_tts
         import concurrent.futures
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.submit(lambda: asyncio.run(generate_edge_tts(speech_text, output_path, voice=voice))).result()
-        tts_engine_used = f"edge-tts ({voice})"
+            executor.submit(lambda: asyncio.run(generate_edge_tts(spoken_summary, output_path, voice=voice))).result()
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            tts_engine_used = f"edge-tts ({voice})"
+            return output_path, tts_engine_used
     except Exception as e:
-        logger.warning(f"edge-tts failed or offline ({e}). Falling back to pyttsx3...")
-        try:
-            import pyttsx3
-            wav_path = output_path.replace(".mp3", ".wav")
-            engine = pyttsx3.init()
-            engine.setProperty("rate", 150)
-            engine.save_to_file(speech_text, wav_path)
-            engine.runAndWait()
-            output_path = wav_path
-            tts_engine_used = "pyttsx3 (Offline Fallback)"
-        except Exception as pe:
-            logger.error(f"pyttsx3 TTS fallback failed: {pe}")
-            return None, "Failed"
+        logger.warning(f"edge-tts failed ({e}). Attempting gTTS fallback...")
 
-    return output_path, tts_engine_used
+    # Tier 2: gTTS (Pure HTTP Google TTS, works 100% in cloud/Linux/Docker)
+    try:
+        from gtts import gTTS
+        tts = gTTS(text=spoken_summary, lang='en', tld='co.in')
+        tts.save(output_path)
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            tts_engine_used = "gTTS (en-IN)"
+            return output_path, tts_engine_used
+    except Exception as ge:
+        logger.warning(f"gTTS fallback failed ({ge}). Attempting pyttsx3 offline fallback...")
+
+    # Tier 3: pyttsx3 offline fallback
+    try:
+        import pyttsx3
+        wav_path = output_path.replace(".mp3", ".wav")
+        engine = pyttsx3.init()
+        engine.setProperty("rate", 150)
+        engine.save_to_file(spoken_summary, wav_path)
+        engine.runAndWait()
+        if os.path.exists(wav_path) and os.path.getsize(wav_path) > 1000:
+            return wav_path, "pyttsx3 (Offline Fallback)"
+    except Exception as pe:
+        logger.error(f"pyttsx3 TTS fallback failed: {pe}")
+
+    return None, "Failed"
 
 def synthesize_clean_fallback_answer(query_text, chunks, domain, subdomain):
     """
