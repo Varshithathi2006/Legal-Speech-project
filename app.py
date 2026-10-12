@@ -13,11 +13,92 @@ import streamlit as st
 
 # Set Streamlit Page Configuration
 st.set_page_config(
-    page_title="Indian Legal Speech RAG Studio",
-    page_icon="⚖️",
+    page_title="Indian Legal Speech RAG Studio — Research Console",
+    page_icon="§",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Custom Obsidian Legal-Tech CSS
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Base Background */
+.stApp {
+    background-color: #090d16;
+    color: #f8fafc;
+}
+
+/* Sidebar Styling */
+section[data-testid="stSidebar"] {
+    background-color: #0e1628 !important;
+    border-right: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+/* Metric Cards */
+div[data-testid="stMetric"] {
+    background: rgba(19, 30, 54, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+div[data-testid="stMetricValue"] {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #93c5fd;
+}
+
+div[data-testid="stMetricLabel"] {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+}
+
+/* Primary Button Styling */
+button[kind="primary"] {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+    transition: all 0.15s ease !important;
+}
+
+button[kind="primary"]:hover {
+    background-color: #1d4ed8 !important;
+}
+
+/* Input Fields */
+input, textarea, select {
+    background-color: #090d16 !important;
+    color: #f8fafc !important;
+    border: 1px solid rgba(148, 163, 184, 0.15) !important;
+    border-radius: 8px !important;
+}
+
+/* Headers */
+h1, h2, h3 {
+    font-family: 'Outfit', sans-serif;
+    color: #f8fafc !important;
+    letter-spacing: -0.01em;
+}
+
+/* Info & Success Alerts */
+div[data-testid="stAlert"] {
+    border-radius: 8px !important;
+    border: 1px solid rgba(148, 163, 184, 0.15) !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Import existing backend modules directly from legal_rag_qa.py
 try:
@@ -34,19 +115,19 @@ except Exception as e:
     st.stop()
 
 # ──────────────────────────────────────────────────────────────────────
-# Sidebar: Live Dataset Statistics & Navigation
+# Sidebar: System Specifications & Research Navigation
 # ──────────────────────────────────────────────────────────────────────
-st.sidebar.title("⚖️ Legal Speech RAG")
-st.sidebar.markdown("**Speech Processing & Vector QA Studio**")
+st.sidebar.markdown("### Legal Speech RAG Studio")
+st.sidebar.caption("Research & Diagnostic Console")
 st.sidebar.divider()
 
 page = st.sidebar.radio(
-    "Navigation",
-    ["🔍 Page 1: Ask a Legal Question", "🎙️ Page 2: Upload Audio & Summarize"]
+    "Research Modules",
+    ["Page 1: Statutory Question Answering", "Page 2: Courtroom Audio Lab & Diarization"]
 )
 
 st.sidebar.divider()
-st.sidebar.subheader("📊 Live Knowledge Base Stats")
+st.sidebar.markdown("#### Knowledge Base Specifications")
 
 try:
     total_chunks = collection.count()
@@ -56,17 +137,17 @@ try:
     statute_count = sum(1 for m in metas if m.get("source_type") == "statute_document")
     speech_count = sum(1 for m in metas if m.get("source_type") == "speech_transcript")
     
-    st.sidebar.metric("Total Chunks Indexed", f"{total_chunks:,}")
+    st.sidebar.metric("Total Indexed Chunks", f"{total_chunks:,}")
     st.sidebar.metric("Statutory Provisions", f"{statute_count:,}")
-    st.sidebar.metric("Moot Court Speech Turns", f"{speech_count:,}")
-    st.sidebar.caption(f"Embedding: `{EMBEDDING_MODEL_NAME}`")
+    st.sidebar.metric("Courtroom Speech Turns", f"{speech_count:,}")
+    st.sidebar.caption(f"Dense Embedding: `{EMBEDDING_MODEL_NAME}` (1024-D)")
     st.sidebar.caption("Supreme Court Track: Excluded (0 chunks)")
 except Exception as se:
     st.sidebar.error(f"Error fetching stats: {se}")
 
 st.sidebar.divider()
-with st.sidebar.expander("🔑 LLM API Key (Optional)", expanded=False):
-    st.caption("Enter a Gemini or OpenAI key to activate full 21-rule generative legal synthesis. If blank, the system uses clean grounded statutory synthesis.")
+with st.sidebar.expander("API Gateway Configuration (Optional)", expanded=False):
+    st.caption("Provide an optional API key to activate full generative legal synthesis. If blank, the system uses grounded statutory synthesis.")
     gemini_key = st.text_input("Gemini API Key:", type="password", placeholder="AIzaSy...")
     if gemini_key:
         os.environ["GEMINI_API_KEY"] = gemini_key.strip()
@@ -75,20 +156,20 @@ with st.sidebar.expander("🔑 LLM API Key (Optional)", expanded=False):
         os.environ["OPENAI_API_KEY"] = openai_key.strip()
 
 # ──────────────────────────────────────────────────────────────────────
-# Page 1: Ask a Legal Question (RAG QA)
+# Page 1: Statutory Question Answering (RAG QA)
 # ──────────────────────────────────────────────────────────────────────
-if page == "🔍 Page 1: Ask a Legal Question":
-    st.title("🔍 Domain-Driven Legal Question Answering")
-    st.caption("Select a legal domain and subdomain to execute domain-filtered RAG retrieval and receive highly grounded answers.")
+if page == "Page 1: Statutory Question Answering":
+    st.title("Domain-Driven Statutory Question Answering")
+    st.caption("Select a legal domain and subdomain to execute domain-filtered RAG retrieval and receive grounded statutory answers.")
 
     # Step 1 & 2: Hierarchical Domain Selection
-    st.subheader("⚖️ Hierarchical Domain Selection")
+    st.markdown("#### Hierarchical Legal Domain Selection")
     
     col_domain, col_subdomain = st.columns(2)
     
     with col_domain:
         selected_domain = st.selectbox(
-            "Step 1: Select Primary Legal Domain",
+            "Primary Legal Domain",
             options=list(LEGAL_DOMAINS.keys()),
             index=0
         )
@@ -96,20 +177,19 @@ if page == "🔍 Page 1: Ask a Legal Question":
     with col_subdomain:
         subdomains = LEGAL_DOMAINS[selected_domain]
         selected_subdomain = st.selectbox(
-            "Step 2: Select Legal Subdomain",
+            "Legal Subdomain",
             options=subdomains,
             index=0
         )
         
     # Display Active Path with Applicable Law
     applicable_law = SUBDOMAIN_APPLICABLE_LAW.get(selected_subdomain, selected_subdomain)
-    st.info(f"📂 **Active Path:** `{selected_domain}` ➔ `{selected_subdomain}`")
-    st.caption(f"📜 **Applicable Law:** {applicable_law}  |  🌏 **Jurisdiction:** India")
+    st.info(f"**Selected Domain Path:** `{selected_domain}` > `{selected_subdomain}`  |  **Governing Statute:** {applicable_law}")
 
     # Voice Preferences
-    st.subheader("🔊 Audio Synthesis Preferences")
+    st.markdown("#### Audio Synthesis Settings")
     voice_gender = st.radio(
-        "Select TTS Voice Gender:",
+        "Neural Voiceover Accent (Indian English):",
         ["Female (Neerja)", "Male (Prabhat)"],
         index=0,
         horizontal=True
@@ -118,90 +198,48 @@ if page == "🔍 Page 1: Ask a Legal Question":
 
     # Presets Definition
     SUBDOMAIN_SAMPLE_QUERIES = {
-        "Criminal Law": {
-            "CrPC": "What are the requirements for bail under CrPC and fundamental rights under Article 14?",
-            "Bail Procedures": "What arguments were raised regarding bail procedures and framing of charges?",
-            "Indian Penal Code (IPC)": "What did the court discuss regarding framing of charges and disqualification from elections?",
-            "Indian Evidence Act": "What are the rules regarding the admissibility of digital evidence under the Evidence Act?",
-            "Sentencing Guidelines": "What factors do Indian courts consider when determining sentencing guidelines?"
-        },
         "Constitutional & Administrative Law": {
-            "Fundamental Rights": "What arguments were raised regarding Article 21 and Section 8(3) of Representation of People Act?",
+            "Election & Representation Law": "What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?",
+            "Fundamental Rights": "How is the right to life and personal liberty protected under Article 21 of the Constitution of India in Supreme Court jurisprudence?",
             "Writ Petitions": "How is a writ petition filed under Article 32 or 226 for fundamental rights violation?",
-            "Center-State Relations": "Explain the distribution of legislative powers between Center and States under the Seventh Schedule.",
-            "Administrative Tribunals": "What is the jurisdiction of Administrative Tribunals in service matters in India?",
-            "Constitutional Amendments": "What is section 9A of the Representation of the People Act?",
-            "Election & Representation Law": "What does Section 9A of the Representation of the People Act, 1951 state regarding disqualification for government contracts?"
+            "Center-State Relations": "Explain the distribution of legislative powers between Center and States under the Seventh Schedule."
+        },
+        "Criminal Law": {
+            "Indian Evidence Act": "What are the mandatory certificate requirements for electronic records admissibility under Section 65B of the Indian Evidence Act, 1872?",
+            "Bail Procedures": "What statutory conditions and judicial principles govern the grant of bail under Section 437 of the Code of Criminal Procedure, 1973 for non-bailable offences?",
+            "CrPC": "What are the statutory grounds and procedural protections regarding arrest under the CrPC?"
         },
         "Corporate & Business Law": {
-            "Contract Law": "What are the statutory grounds for setting aside an arbitral award under Section 34?",
-            "Companies Act": "What are the duties of directors under the Indian Companies Act 2013?",
-            "Partnership & LLP": "Explain the key differences between a traditional partnership and a Limited Liability Partnership (LLP).",
-            "Insolvency & Bankruptcy Code (IBC)": "What is the corporate insolvency resolution process (CIRP) timeline under IBC?",
-            "Intellectual Property (IP)": "What constitute patentable subject matters under the Indian Patents Act?"
-        },
-        "Finance & Tax Law": {
-            "GST": "What are the GST implications for a small business in India?",
-            "Income Tax": "What are the standard deduction rules for salaried individuals under the Income Tax Act?",
-            "Banking Law": "What are the compliance requirements for NBFCs under RBI regulations?",
-            "Securities Law": "What powers does SEBI have to check insider trading in India?",
-            "Financial Regulations": "Explain the compliance requirements under FEMA for foreign direct investment."
+            "Contract Law": "On what statutory grounds can an arbitral award be set aside under Section 34 of the Arbitration and Conciliation Act, 1996?",
+            "Companies Act": "What are the statutory duties and liabilities of corporate directors under the Indian Companies Act 2013?"
         },
         "Cyber & Digital Law": {
-            "IT Act": "What is Section 66A of the IT Act and why was it struck down by the Supreme Court?",
-            "Data Privacy": "What are the data privacy compliance rules under the Digital Personal Data Protection (DPDP) Act?",
-            "Cyber Security Regulations": "What are the mandatory reporting timelines for cyber security incidents under CERT-In?",
-            "Cyber Crime": "What are the legal remedies against online identity theft and phishing under Indian law?",
-            "Digital Evidence": "How is digital evidence certified under Section 65B of the Indian Evidence Act?"
-        },
-        "Employment & Labour Law": {
-            "Industrial Disputes": "What is the procedure for settling industrial disputes under the Industrial Disputes Act?",
-            "Wages & Bonus": "How is minimum wage calculated and enforced in India?",
-            "Social Security": "What are the employee eligibility criteria for gratuity under Indian labour laws?",
-            "Trade Unions": "Explain the registration and recognition process of Trade Unions in India.",
-            "Factories Act": "What are the safety and health provisions mandated for workers under the Factories Act?"
-        },
-        "Property & Real Estate Law": {
-            "Transfer of Property Act": "What are the essential conditions for a valid transfer of immovable property by sale?",
-            "RERA": "What are the builder disclosure obligations and registration requirements under RERA?",
-            "Land Acquisition": "What is the compensation calculation model under the Right to Fair Compensation Act?",
-            "Landlord-Tenant Disputes": "What are the legal grounds for eviction of a tenant under rent control laws?",
-            "Easements": "What constitutes an easementary right of way by prescription under Indian law?"
-        },
-        "Family & Personal Law": {
-            "Marriage & Divorce": "What are the legal grounds for divorce under the Hindu Marriage Act?",
-            "Succession & Inheritance": "How is property distributed for a Hindu male dying intestate under the Hindu Succession Act?",
-            "Maintenance & Alimony": "What are the maintenance rights of a wife under Section 125 of CrPC?",
-            "Guardianship": "Who is considered the natural guardian of a minor child under Hindu law?",
-            "Hindu/Muslim Law": "What are the inheritance rules for women under Muslim personal law in India?"
-        },
-        "Consumer & Safety Law": {
-            "Consumer Protection": "What are the rights of a consumer against unfair trade practices under the Consumer Protection Act 2019?",
-            "Product Liability": "What are the product liability claims a consumer can raise against a manufacturer?",
-            "Food Safety Regulations": "What are the labelling requirements and food safety regulations under FSSAI?",
-            "Workplace Safety": "What are the duties of employers regarding safety and hazard prevention in factories?",
-            "Public Safety Regulations": "What are the legal liabilities under the Environmental Protection Act for industrial pollution?"
+            "IT Act": "What is Section 66A of the Information Technology Act and on what grounds was it struck down by the Supreme Court?",
+            "Data Privacy": "What are the data principal rights under the Digital Personal Data Protection Act, 2023?"
         }
     }
 
     preset_query = SUBDOMAIN_SAMPLE_QUERIES.get(selected_domain, {}).get(selected_subdomain, "")
     
-    st.markdown("**Sample Benchmark Query:**")
-    use_preset = st.button(f"📋 Use Preset: {preset_query}")
+    if preset_query:
+        st.markdown("**Suggested Benchmark Query:**")
+        use_preset = st.button(f"Use Benchmark Query: {preset_query}")
+        query_val = preset_query if use_preset else ""
+    else:
+        query_val = ""
     
-    query_val = preset_query if use_preset else ""
-    
-    query_input = st.text_input(
-        "Enter your legal question:",
+    query_input = st.text_area(
+        "Enter Legal Question / Statutory Issue:",
         value=query_val,
-        placeholder=f"Type your query for {selected_subdomain} here..."
+        placeholder=f"State your legal inquiry regarding {selected_subdomain}...",
+        height=100
     )
 
-    if st.button("Run Domain Query", type="primary", use_container_width=True):
+    if st.button("Analyze Legal Query", type="primary", use_container_width=True):
         if not query_input.strip():
             st.warning("Please enter a valid legal question.")
         else:
-            with st.spinner(f"Classifying query, executing RAG query on {selected_domain} context, and synthesizing answer..."):
+            with st.spinner(f"Executing dense retrieval and 21-rule statutory synthesis for {selected_domain}..."):
                 try:
                     explanation, citations, audio_file, metrics = process_hierarchical_legal_query(
                         query_input.strip(), 
@@ -210,29 +248,29 @@ if page == "🔍 Page 1: Ask a Legal Question":
                         voice_gender=gender_backend
                     )
                     
-                    if "⚠️ **Domain Mismatch:**" in explanation:
-                        st.warning("Domain Mismatch Detected")
+                    if "Domain Mismatch:" in explanation:
+                        st.warning("Domain Mismatch Detected by Router")
                     else:
-                        st.success("Query processed successfully!")
+                        st.success("Statutory analysis generated successfully.")
                     
-                    # Display Clean Explanation only
-                    st.subheader("📝 Answer")
+                    # Display Legal Analysis
+                    st.markdown("### Legal Analysis")
                     st.markdown(explanation)
                         
                     # Embedded Audio Player
-                    st.subheader("🔊 Spoken Audio Explanation")
+                    st.markdown("### Spoken Audio Narration")
                     if audio_file and os.path.exists(audio_file):
                         st.audio(audio_file, format="audio/mp3")
-                        st.caption(f"Generated audio file ({voice_gender}): `{os.path.basename(audio_file)}`")
+                        st.caption(f"Synthesized voiceover ({voice_gender}): `{os.path.basename(audio_file)}`")
                     else:
-                        st.warning("Audio synthesis was not generated.")
+                        st.info("Audio synthesis not available for this response.")
                         
                     # Collapsible Evaluation Metrics Section
-                    with st.expander("📊 Diagnostic Evaluation Metrics (Collapsible)", expanded=False):
+                    with st.expander("Diagnostic Evaluation Metrics", expanded=False):
                         m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-                        m_col1.metric("Mean Cosine Sim", f"{metrics['mean_cosine_similarity']:.4f}")
+                        m_col1.metric("Context Precision", f"{metrics['context_precision']*100:.1f}%")
                         m_col2.metric("Max Cosine Sim", f"{metrics['max_cosine_similarity']:.4f}")
-                        m_col3.metric("Context Precision", f"{metrics['context_precision']*100:.1f}%")
+                        m_col3.metric("Exact Matches", f"{metrics['exact_match_chunks']}")
                         m_col4.metric("Total Latency", f"{metrics['total_latency_seconds']:.2f}s")
                         
                         st.divider()
@@ -247,24 +285,24 @@ if page == "🔍 Page 1: Ask a Legal Question":
                             "principled_threshold": metrics["principled_threshold"]
                         })
                 except Exception as ex:
-                    st.error(f"Error executing Domain query pipeline: {str(ex)}")
+                    st.error(f"Error executing statutory query pipeline: {str(ex)}")
 
 # ──────────────────────────────────────────────────────────────────────
-# Page 2: Upload Audio & Summarize
+# Page 2: Courtroom Audio Lab & Diarization
 # ──────────────────────────────────────────────────────────────────────
-elif page == "🎙️ Page 2: Upload Audio & Summarize":
-    st.title("🎙️ Upload Audio Proceeding & Summarize")
-    st.caption("Upload courtroom/moot court audio files (.wav, .mp3, .m4a) to generate speaker diarization, transcription, and an executive summary.")
+elif page == "Page 2: Courtroom Audio Lab & Diarization":
+    st.title("Courtroom Audio Lab: Diarization & Transcription")
+    st.caption("Upload courtroom or moot court recordings (.wav, .mp3, .m4a) to inspect speaker diarization, speech transcription, and executive summaries.")
     
     uploaded_file = st.file_uploader(
-        "Choose an audio file",
+        "Select an audio recording",
         type=["wav", "mp3", "m4a"],
         help="Upload a legal proceeding recording (.wav, .mp3, or .m4a)"
     )
     
-    st.info("🔒 **Rights Confirmation Required**")
+    st.info("Rights Confirmation: Ensure compliance with judicial recording guidelines.")
     consent = st.checkbox(
-        "I confirm I have the rights to upload and process this recording (e.g. it's not a Supreme Court/High Court live-stream, which prohibits redistribution)."
+        "I confirm I have the necessary rights to process this audio recording (e.g., moot court session or permitted educational proceeding)."
     )
     
     if uploaded_file is not None:
@@ -272,12 +310,11 @@ elif page == "🎙️ Page 2: Upload Audio & Summarize":
         
         process_btn = st.button("Process Audio & Generate Summary", type="primary", disabled=not consent, use_container_width=True)
         if not consent:
-            st.warning("⚠️ Please check the consent box above to confirm rights ownership before processing.")
+            st.warning("Please confirm the rights authorization above before processing.")
             
         if process_btn and consent:
-            with st.status("Processing audio file...", expanded=True) as status:
+            with st.status("Processing audio recording...", expanded=True) as status:
                 try:
-                    # Save uploaded file to temp file
                     temp_dir = tempfile.mkdtemp()
                     input_ext = uploaded_file.name.split(".")[-1].lower()
                     raw_audio_path = os.path.join(temp_dir, f"input_raw.{input_ext}")
@@ -287,7 +324,7 @@ elif page == "🎙️ Page 2: Upload Audio & Summarize":
                         f.write(uploaded_file.getbuffer())
                         
                     # Step 1: Preprocessing & 16kHz PCM Audio Conversion
-                    status.update(label="Step 1/3: Signal Preprocessing & Audio Extraction (16kHz PCM)...")
+                    status.update(label="Step 1/3: Signal Preprocessing (16kHz Mono PCM)...")
                     ffmpeg_cmd = [
                         "ffmpeg", "-y", "-i", raw_audio_path,
                         "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
@@ -295,14 +332,14 @@ elif page == "🎙️ Page 2: Upload Audio & Summarize":
                     ]
                     res = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
                     if res.returncode != 0 or not os.path.exists(pcm_wav_path):
-                        st.error("Audio conversion failed via FFmpeg. Please check if the audio file is valid.")
+                        st.error("Audio signal preprocessing failed via FFmpeg. Please verify the audio file format.")
                         st.stop()
                         
-                    # Step 2: Diarization & Faster-Whisper ASR Transcription
-                    status.update(label="Step 2/3: Neural Diarization & Faster-Whisper ASR (CUDA GPU)...")
+                    # Step 2: Faster-Whisper ASR Transcription
+                    status.update(label="Step 2/3: Speech-to-Text Transcription (Faster-Whisper)...")
                     
                     from faster_whisper import WhisperModel
-                    model = WhisperModel("small", device="cuda", compute_type="int8")
+                    model = WhisperModel("small", device="cuda" if os.environ.get("USE_CUDA", "0") == "1" else "cpu", compute_type="int8")
                     segments, info = model.transcribe(pcm_wav_path, beam_size=5, language="en")
                     
                     transcript_entries = []
@@ -320,11 +357,11 @@ elif page == "🎙️ Page 2: Upload Audio & Summarize":
                     raw_transcript_combined = "\n".join(full_transcript_text)
                     
                     if not raw_transcript_combined.strip():
-                        st.error("Transcription yielded empty text. Please check if the audio contains audible speech.")
+                        st.error("Transcription yielded empty text. Verify that the file contains audible speech.")
                         st.stop()
                         
-                    # Step 3: LLM Summarization with User-Specified Prompt
-                    status.update(label="Step 3/3: Generating Executive Legal Summary via LLM...")
+                    # Step 3: Executive Legal Summary
+                    status.update(label="Step 3/3: Synthesizing Executive Legal Summary...")
                     
                     summarization_prompt = (
                         "Summarize this legal proceeding in plain, well-organized prose. "
@@ -338,7 +375,6 @@ elif page == "🎙️ Page 2: Upload Audio & Summarize":
                     
                     api_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
                     openai_key = os.environ.get("OPENAI_API_KEY", "")
-                    hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACEHUB_API_TOKEN", "")
                     summary_output = ""
                     
                     if api_key:
@@ -362,23 +398,6 @@ elif page == "🎙️ Page 2: Upload Audio & Summarize":
                             summary_output = r.choices[0].message.content.strip()
                         except Exception:
                             pass
-
-                    hf_token = os.environ.get("HF_TOKEN", "") or os.environ.get("HUGGINGFACEHUB_API_TOKEN", "")
-                    if not summary_output and hf_token:
-                        try:
-                            from huggingface_hub import InferenceClient
-                            client = InferenceClient(token=hf_token)
-                            r = client.chat_completion(
-                                model="meta-llama/Llama-3.2-3B-Instruct",
-                                messages=[{"role": "user", "content": summarization_prompt}],
-                                max_tokens=600,
-                                temperature=0.3
-                            )
-                            raw_out = r.choices[0].message.content.strip()
-                            if raw_out and len(raw_out) > 20 and not raw_out.startswith("I can't provide"):
-                                summary_output = raw_out
-                        except Exception:
-                            pass
                             
                     if not summary_output:
                         lines = [line for line in raw_transcript_combined.splitlines() if line.strip()]
@@ -391,19 +410,19 @@ elif page == "🎙️ Page 2: Upload Audio & Summarize":
                             "\n".join([f"- {l}" for l in summary_lines[:5]])
                         )
                         
-                    status.update(label="Complete!", state="complete", expanded=False)
+                    status.update(label="Complete", state="complete", expanded=False)
                     
                     # Display Output
-                    st.subheader("📑 Executive Legal Summary")
+                    st.markdown("### Executive Legal Summary")
                     st.markdown(summary_output)
                     
                     # Expandable Full Transcript Section
-                    with st.expander("📜 Full Speaker-Labeled Transcript", expanded=False):
+                    with st.expander("Full Speaker-Labeled Transcript", expanded=False):
                         for line in transcript_entries:
                             st.text(line)
                             
-                    st.info("💡 Note: Uploaded audio and transcripts remain session-only and are not added to the persistent ChromaDB index.")
+                    st.caption("Note: Uploaded session recordings remain temporary and are not committed to the persistent ChromaDB index.")
                     
                 except Exception as ex:
-                    status.update(label="Error occurred", state="error")
+                    status.update(label="Processing halted", state="error")
                     st.error(f"Error during audio processing: {str(ex)}")
