@@ -131,7 +131,7 @@ def clean_citation_text(raw_cites):
 def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode, manual_domain, manual_subdomain, voice_gender):
     if not query or not query.strip():
         empty_law = format_applicable_law_card("Constitutional & Administrative Law", "Fundamental Rights")
-        return "Please enter a legal question to initiate statutory analysis.", empty_law, "", gr.update(value=None, visible=False), gr.update(interactive=False), gr.update(value="", visible=False)
+        return "Please enter a legal question to initiate statutory analysis.", empty_law, "", None, gr.update(interactive=False), gr.update(value="", visible=False)
     
     try:
         domain = manual_domain if manual_mode else detected_domain
@@ -153,16 +153,14 @@ def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode,
         law_card_html = format_applicable_law_card(domain, subdomain)
         clean_cites_html = clean_citation_text(cites)
         
-        audio_update = gr.update(value=aud_path, visible=True) if (aud_path and os.path.exists(aud_path)) else gr.update(value=None, visible=False)
-        
-        return ans, law_card_html, clean_cites_html, audio_update, gr.update(interactive=is_valid), gr.update(value="", visible=False)
+        return ans, law_card_html, clean_cites_html, aud_path, gr.update(interactive=is_valid), gr.update(value="", visible=False)
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
         print(f"Error processing query: {error_details}")
         error_msg = f"**An error occurred during query processing:** {str(e)}\n\nPlease try rephrasing your legal question or selecting the domain again."
         empty_law = format_applicable_law_card(detected_domain, detected_subdomain)
-        return error_msg, empty_law, "", gr.update(value=None, visible=False), gr.update(interactive=False), gr.update(value="", visible=False)
+        return error_msg, empty_law, "", None, gr.update(interactive=False), gr.update(value="", visible=False)
 
 
 def handle_explain_simple(verified_answer, citations):
@@ -949,8 +947,8 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=theme, css=custom_c
             # Section 3 & 4: Supporting Evidence, Citations & Provenance
             citations_box = gr.HTML(value="", elem_classes="citations-container")
 
-            # Section 6: Spoken Neural Voice Output (Initially hidden until generated)
-            audio_box = gr.Audio(label="Spoken Neural Voice Explanation (Indian English)", type="filepath", elem_classes="audio-card", visible=False)
+            # Section 6: Spoken Neural Voice Output
+            audio_box = gr.Audio(label="Spoken Neural Voice Explanation (Indian English)", type="filepath", elem_classes="audio-card")
 
     # Wire Submit Action
     submit_btn.click(
