@@ -14,3 +14,5 @@ legal_speech_rag_dataset/
 cloudflared.exe
 .env
 .env.*
+*.png
+*.pdf
