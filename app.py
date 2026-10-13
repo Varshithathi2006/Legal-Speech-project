@@ -192,11 +192,11 @@ if page == "Page 1: Statutory Question Answering":
     st.markdown("#### Audio Synthesis Settings")
     voice_gender = st.radio(
         "Neural Voiceover Accent (Indian English):",
-        ["Female (Neerja)", "Male (Prabhat)"],
+        ["Voice"],
         index=0,
         horizontal=True
     )
-    gender_backend = "Female" if "Female" in voice_gender else "Male"
+    gender_backend = "Female"
 
     # Presets Definition
     SUBDOMAIN_SAMPLE_QUERIES = {

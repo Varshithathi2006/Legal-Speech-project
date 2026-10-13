@@ -274,7 +274,7 @@ function renderResults(data) {
 
     // 4. Latency & Selected Voice
     latencyBadge.textContent = `${data.metrics?.total_latency_seconds ? data.metrics.total_latency_seconds.toFixed(2) : "0.82"}s`;
-    voiceName.textContent = selectedVoice === "Female" ? "en-IN-NeerjaNeural" : "en-IN-PrabhatNeural";
+    voiceName.textContent = "en-IN-NeerjaNeural";
 
     // 5. Spoken Neural Voice Narration
     if (data.audio_url) {

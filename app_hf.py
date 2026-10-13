@@ -139,8 +139,6 @@ def handle_gradio_query(query, detected_domain, detected_subdomain, manual_mode,
         subdomain = manual_subdomain if manual_mode else detected_subdomain
         
         clean_gender = "Female"
-        if voice_gender and "Male" in str(voice_gender):
-            clean_gender = "Male"
 
         # Run the 21-rule RAG retrieval & synthesis pipeline
         ans, cites, aud_path, metrics = process_hierarchical_legal_query(
@@ -846,7 +844,7 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=theme, css=custom_c
             </div>
             <div class="capability-item">
                 <span class="capability-val">Neural TTS (en-IN)</span>
-                <span class="capability-lbl">Neerja & Prabhat Voice Synthesis</span>
+                <span class="capability-lbl">Neerja Voice Synthesis</span>
             </div>
         </div>
     </div>
@@ -919,7 +917,7 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=theme, css=custom_c
                 domain_dropdown.change(on_domain_change, inputs=[domain_dropdown], outputs=[subdomain_dropdown])
 
             voice_choice = gr.Radio(
-                choices=[("Female — Neerja (Indian English)", "Female"), ("Male — Prabhat (Indian English)", "Male")],
+                choices=[("Voice", "Female")],
                 value="Female",
                 label="Spoken Narration Voice"
             )

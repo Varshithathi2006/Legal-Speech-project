@@ -1064,7 +1064,7 @@ def text_to_speech_with_gender(text, gender="Female", output_filename=None):
 
     output_path = os.path.abspath(os.path.join(OUTPUT_AUDIO_DIR, output_filename))
     tts_engine_used = ""
-    voice = "en-IN-NeerjaNeural" if gender == "Female" else "en-IN-PrabhatNeural"
+    voice = "en-IN-NeerjaNeural"
 
     # Tier 1: Microsoft Edge Neural TTS (with 4s strict timeout)
     try:
