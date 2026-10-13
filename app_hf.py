@@ -6,6 +6,8 @@ import gradio as gr
 from dotenv import load_dotenv
 
 load_dotenv()
+os.environ["USE_TF"] = "0"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 try:
     import spaces
@@ -839,8 +841,8 @@ with gr.Blocks(title="Indian Legal Speech RAG Studio", theme=theme, css=custom_c
                 <span class="capability-lbl">Dense Semantic Embedding Model</span>
             </div>
             <div class="capability-item">
-                <span class="capability-val">21-Rule Engine</span>
-                <span class="capability-lbl">Factual Grounding & Citation Verifier</span>
+                <span class="capability-val">Neural Legal LLM</span>
+                <span class="capability-lbl">Qwen-27B Legal Synthesis</span>
             </div>
             <div class="capability-item">
                 <span class="capability-val">Neural TTS (en-IN)</span>

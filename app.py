@@ -153,6 +153,9 @@ with st.sidebar.expander("API Gateway Configuration (Optional)", expanded=False)
     gemini_key = st.text_input("Gemini API Key:", type="password", placeholder="AIzaSy...")
     if gemini_key:
         os.environ["GEMINI_API_KEY"] = gemini_key.strip()
+    groq_key = st.text_input("Groq API Key (Ultra Fast):", type="password", placeholder="gsk_...")
+    if groq_key:
+        os.environ["GROQ_API_KEY"] = groq_key.strip()
     openai_key = st.text_input("OpenAI API Key:", type="password", placeholder="sk-...")
     if openai_key:
         os.environ["OPENAI_API_KEY"] = openai_key.strip()
